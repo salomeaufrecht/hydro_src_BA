@@ -248,18 +248,19 @@ std::vector<double> applyFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, Du
     Dune::FieldVector<double, dim> b1 = end1 - start1;
     Dune::FieldVector<double, dim> b2 = end2 - start2;
 
-
+    double minX = std::min({start1[0], start2[0], end1[0], end2[0]});
+    double maxX = std::max({start1[0], start2[0], end1[0], end2[0]});
+    double minY = std::min({start1[1], start2[1], end1[1], end2[1]});
+    double maxY = std::max({start1[1], start2[1], end1[1], end2[1]});
    
     
-
     for(auto& v : vertices(gridView)){
-        
 
         auto cornerI = v.geometry().corner(0);
-        if(cornerI[0] < std::min({start1[0], start2[0], end1[0], end2[0]})) continue; //test if trangle is outside of desired range
-        else if (cornerI[0] > std::max({start1[0], start2[0], end1[0], end2[0]}))continue;
-        if(cornerI[1] < std::min({start1[1], start2[1], end1[1], end2[1]})) continue;
-        else if (cornerI[1] > std::max({start1[1], start2[1], end1[1], end2[1]})) continue;
+        if(cornerI[0] < minX) continue; //test if vertex is outside of desired range
+        else if (cornerI[0] > maxX)continue;
+        if(cornerI[1] < minY) continue;
+        else if (cornerI[1] > maxY) continue;
 
         Dune::FieldVector<double, dim> vec1 = cornerI - start1;
         Dune::FieldVector<double, dim> vec2 = cornerI - start2;

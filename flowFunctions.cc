@@ -34,8 +34,10 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
     Dune::FieldVector<double, dim> b1 = end1 - start1;
     Dune::FieldVector<double, dim> b2 = end2 - start2;
 
-    bool vertFlow = (std::abs(flowVector[1]) < 1e-8 && widthStart==widthEnd) ? true : false;
-    bool horFlow = (std::abs(flowVector[0]) < 1e-8 && widthStart==widthEnd) ? true : false;
+    bool horFlow = (std::abs(flowVector[1]) < 1e-8 && widthStart==widthEnd) ? true : false;
+    bool vertFlow = (std::abs(flowVector[0]) < 1e-8 && widthStart==widthEnd) ? true : false;
+    bool diagFlow = (std::abs(flowVector[0] + flowVector[1]) < 1e-8 || std::abs(flowVector[0] - flowVector[1]) < 1e-8);
+
 
     double minX = std::min({start1[0], start2[0], end1[0], end2[0]});
     double maxX = std::max({start1[0], start2[0], end1[0], end2[0]});
@@ -52,7 +54,6 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
     //std::cout << "minsize " << minSize << std::endl;
 
     double epsilonAngle = 1e-5; //TODO: till which angle?
-    bool vOrHFlow = (std::abs(b1[0]) < epsilonAngle || std::abs(b1[1]) < epsilonAngle) && ((std::abs(b2[0]) < epsilonAngle || std::abs(b2[1]) < epsilonAngle));
    
     
     int c=0;
@@ -72,7 +73,7 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
             //std::cout << "\n" ;
             for (int i = 0; i < 3; i++){
                 auto cornerI = element.geometry().corner(i);
-                if (cornerI[0] < minX-1 || cornerI[0] > maxX+1 || cornerI[1] < minY-1 || cornerI[1] > maxY+1){ continueElem = true; break;} //element too far away
+                //if (cornerI[0] < minX-1 || cornerI[0] > maxX+1 || cornerI[1] < minY-1 || cornerI[1] > maxY+1){ continueElem = true; break;} //element too far away
                 if(cornerI[0] < minX) xOut--; //test if (corner of) trangle is outside of desired range
                 else if (cornerI[0] > maxX)xOut++;
                 if(cornerI[1] < minY) yOut--;
@@ -120,7 +121,7 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
             double dist02 = squaredDistance(element.geometry().corner(0), element.geometry().corner(2));
 
             
-            if (std::min({dist01, dist02}) < minSize*minSize){std::cout << "small" <<std::endl; continue;} //small enough
+            if (std::min({dist01, dist02}) < minSize*minSize){ continue;} //small enough
 
             Dune::FieldVector<double, 2> hypo;
             double yCenterHeight;
@@ -156,15 +157,15 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
 
 
             //TODO: till which angle? 
-            if(vOrHFlow){ //flow (and border) horizontal or vertical (dot product with {1,0}/{0,1})
+            if(vertFlow || horFlow){ //flow (and border) horizontal or vertical (dot product with {1,0}/{0,1})
                 if (std::abs(hypo[0]) < epsilonAngle || std::abs(hypo[1]) < epsilonAngle){ //hypothenuse vertical or horizontal
                     grid->mark(1, element);//hypothenuse vertical or horizontal
                     change = true;
                     continue;
                 }                
-                if(std::abs(start1[1] - yCenterHeight) < epsilon3 || std::abs(start2[1] - yCenterHeight) < epsilon3){std::cout << "-" << std::endl; continue;} // border close to middle of triangle (in right angle)
+                if(std::abs(start1[1] - yCenterHeight) < epsilon3 || std::abs(start2[1] - yCenterHeight) < epsilon3){ continue;} // border close to middle of triangle (in right angle)
             }
-            else if(std::abs(flowVector[0] + flowVector[1]) < 1e-8 || std::abs(flowVector[0] - flowVector[1]) < 1e-8){ //flow diagonal
+            else if(diagFlow){ //flow diagonal
                 if (std::abs(hypo[0] + hypo[1]) < 1e-8 || std::abs(hypo[0] - hypo[1]) < 1e-8){ //hypothenuse diagonal
                     grid->mark(1, element);
                     change = true;
@@ -180,12 +181,11 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
                 double cross2_U = b2[0] * vec2_U[1] - b2[1] * vec2_U[0];
                 double cross2_D = b2[0] * vec2_D[1] - b2[1] * vec2_D[0];
  
-                if((cross1_U > 0 && cross1_D < 0) ||(cross2_U > 0 && cross2_D < 0)){std::cout << "/" << std::endl; continue;} //epsilon points on different sides of border
+                if((cross1_U > 0 && cross1_D < 0) ||(cross2_U > 0 && cross2_D < 0)){ continue;} //epsilon points on different sides of border
             }
         
             change = true;
             grid->mark(1,element);
-            //std::cout << "*";
         }
        
         grid->preAdapt();

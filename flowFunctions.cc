@@ -72,8 +72,10 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
             int yOut = 0;
             //std::cout << "\n" ;
             for (int i = 0; i < 3; i++){
+                //std::cout << i << std::endl;
                 auto cornerI = element.geometry().corner(i);
-                //if (cornerI[0] < minX-1 || cornerI[0] > maxX+1 || cornerI[1] < minY-1 || cornerI[1] > maxY+1){ continueElem = true; break;} //element too far away
+                //std::cout << cornerI << std::endl;
+                if (cornerI[0] < minX-1 || cornerI[0] > maxX+1 || cornerI[1] < minY-1 || cornerI[1] > maxY+1){  continueElem = true; break;} //element too far away
                 if(cornerI[0] < minX) xOut--; //test if (corner of) trangle is outside of desired range
                 else if (cornerI[0] > maxX)xOut++;
                 if(cornerI[1] < minY) yOut--;
@@ -83,13 +85,25 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
                     if(cornerI[1] > maxY) out1 = true;
                     else if (cornerI[1] < minY) out2 = true;
                     else between = true;
+                     if (abs(cornerI[1]-maxY)< 1e-5 || abs(cornerI[1]-minY)< 1e-5){
+                        grid->mark(-1, element); 
+                        continueElem = true;
+                        //std::cout << "b-!" << std::endl;
+                        break;
+                    }
                     continue;
                 }
 
                 if(vertFlow){
-                    if(cornerI[0] > maxX) out1 = true;
-                    else if (cornerI[0] < minX) out2 = true;
+                    if(cornerI[0] > maxX) out2 = true;
+                    else if (cornerI[0] < minX) out1 = true;
                     else between = true;
+                    if (abs(cornerI[0]-maxX)< 1e-5 || abs(cornerI[0]-minX)< 1e-5){
+                        grid->mark(-1, element); 
+                        continueElem = true;
+                        //std::cout << "b!!" << c << std::endl;
+                        break;
+                    }
                     continue;
                 }
     
@@ -101,17 +115,23 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
                 if (std::abs(cross1) < 1e-5 ||std::abs( cross2) < 1e-5){ //border on edge of triangle
                     grid->mark(-1, element); 
                     continueElem = true;
-                    change = true;
+                    //change = true;
+                    //std::cout << "on border"   << cornerI<< std::endl;
                     break;
                 }
+
+                //std::cout << out1 << between << out2 << std::endl;
+
                 
                 if(cross1 > 0) out1 = true;
                 else if(cross2 < 0) out2 = true;
                 else between = true;
+                //std::cout << out1 << between << out2 << "cor" << std::endl;
             }
+            //std::cout << "end elem \n " << std::endl;
 
             
-            if(continueElem || std::abs(xOut) == 3 || std::abs(yOut) == 3 || between + out1 + out2 <= 1) continue; // all 3 corners outside x/y boundry/border on corner/border not within triangle
+            if(continueElem || std::abs(xOut) == 3 || std::abs(yOut) == 3 || between + out1 + out2 <= 1){continue;} // all 3 corners outside x/y boundry/border on corner/border not within triangle
             if(out1+out2==2) { //whole flow inside triangle
                 grid->mark(1, element); 
                 change=true; 
@@ -138,7 +158,7 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
                 else yCenterHeight = element.geometry().corner(0)[1] + (element.geometry().corner(1)[1] - element.geometry().corner(2)[1]) / 2;
                 }
             else if ( dist01 > dist02){  //90deg at 2
-            //std::cout << "2" << std::endl;
+                //std::cout << "2" << std::endl;
                 hypo = element.geometry().corner(0) - element.geometry().corner(1);
                 hypoCenter = element.geometry().corner(1) + hypo/2;
                 if(element.geometry().corner(2)[1] == element.geometry().corner(0)[1]) {
@@ -155,7 +175,7 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
                 }
            
 
-
+            //std::cout << hypo << std::endl;
             //TODO: till which angle? 
             if(vertFlow || horFlow){ //flow (and border) horizontal or vertical (dot product with {1,0}/{0,1})
                 if (std::abs(hypo[0]) < epsilonAngle || std::abs(hypo[1]) < epsilonAngle){ //hypothenuse vertical or horizontal
@@ -163,7 +183,8 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
                     change = true;
                     continue;
                 }                
-                if(std::abs(start1[1] - yCenterHeight) < epsilon3 || std::abs(start2[1] - yCenterHeight) < epsilon3){ continue;} // border close to middle of triangle (in right angle)
+                if(horFlow && (std::abs(start1[1] - hypoCenter[1]) < epsilon3 || std::abs(start2[1] - hypoCenter[1]) < epsilon3)){ continue;} // border close to middle of triangle (in right angle)
+                else if(vertFlow && (std::abs(start1[0] - hypoCenter[0]) < epsilon3 || std::abs(start2[0] - hypoCenter[0]) < epsilon3)){ continue;} // border close to middle of triangle (in right angle)
             }
             else if(diagFlow){ //flow diagonal
                 if (std::abs(hypo[0] + hypo[1]) < 1e-8 || std::abs(hypo[0] - hypo[1]) < 1e-8){ //hypothenuse diagonal

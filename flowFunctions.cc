@@ -34,6 +34,11 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
     Dune::FieldVector<double, dim> b1 = end1 - start1;
     Dune::FieldVector<double, dim> b2 = end2 - start2;
 
+    double minX = std::min({start1[0], start2[0], end1[0], end2[0]});
+    double maxX = std::max({start1[0], start2[0], end1[0], end2[0]});
+    double minY = std::min({start1[1], start2[1], end1[1], end2[1]});
+    double maxY = std::max({start1[1], start2[1], end1[1], end2[1]});
+
     //std::cout <<"start: " << start1[0] << "|" << start1[1]<< std::endl;
     //std::cout <<"end: " << end1[0] << "|" << end1[1]<< std::endl;
 
@@ -58,17 +63,18 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
             bool out1 = false;
             bool out2 = false;
 
-            bool continueFor = false;
+            bool continueElem = false;
             int xOut = 0;
             int yOut = 0;
             //std::cout << "\n" ;
             for (int i = 0; i < 3; i++){
                 auto cornerI = element.geometry().corner(i);
+                if (cornerI[0] < minX-1 || cornerI[0] > maxX+1 || cornerI[1] < minY-1 || cornerI[1] > maxY+1){ continueElem = true; break;}
                 //std::cout << cornerI[0] << "|" << cornerI[1] << std::endl;
-                if(cornerI[0] < std::min({start1[0], start2[0], end1[0], end2[0]})) xOut--; //test if trangle is outside of desired range
-                else if (cornerI[0] > std::max({start1[0], start2[0], end1[0], end2[0]}))xOut++;
-                if(cornerI[1] < std::min({start1[1], start2[1], end1[1], end2[1]})) yOut--;
-                else if (cornerI[1] > std::max({start1[1], start2[1], end1[1], end2[1]})) yOut ++;
+                if(cornerI[0] < minX) xOut--; //test if trangle is outside of desired range
+                else if (cornerI[0] > maxX)xOut++;
+                if(cornerI[1] < minY) yOut--;
+                else if (cornerI[1] > maxY) yOut ++;
     
                 Dune::FieldVector<double, dim> vec1 = cornerI - start1;
                 Dune::FieldVector<double, dim> vec2 = cornerI - start2;
@@ -77,7 +83,7 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
             
                 if (std::abs(cross1) < 1e-5 ||std::abs( cross2) < 1e-5){ //border on edge of triangle
                     grid->mark(-1, element); 
-                    continueFor = true;
+                    continueElem = true;
                     change = true;
                     break;
                 }
@@ -88,7 +94,7 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
             }
 
             
-            if(std::abs(xOut) == 3 || std::abs(yOut) == 3 || continueFor || between + out1 + out2 <= 1) continue; // all 3 corners outside x/y boundry/border on corner/border not within triangle
+            if(continueElem || std::abs(xOut) == 3 || std::abs(yOut) == 3 || between + out1 + out2 <= 1) continue; // all 3 corners outside x/y boundry/border on corner/border not within triangle
             if(out1+out2==2) { //whole flow inside triangle
                 grid->mark(1, element); 
                 change=true; 
@@ -185,7 +191,8 @@ std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim,
 }
 
 std::vector<double> applyFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
-        Dune::FieldVector<double, dim> start, Dune::FieldVector<double, dim> end, double widthStart, double widthEnd, std::vector<double> height){
+                                    Dune::FieldVector<double, dim> start, Dune::FieldVector<double, dim> end, double widthStart, double widthEnd, 
+                                    std::vector<double> height){
     typedef Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming > Grid;
     using GridView = Grid::LeafGridView;
     const GridView gridView = grid->leafGridView();
@@ -206,29 +213,27 @@ std::vector<double> applyFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, Du
 
 
    
-    for (const auto& element : elements(gridView)){
+    
 
-        bool between = false;
-
-        for(auto& v : vertices(gridView)){
-            
-
-            auto cornerI = v.geometry().corner(0);
-            if(cornerI[0] < std::min({start1[0], start2[0], end1[0], end2[0]})) continue; //test if trangle is outside of desired range
-            else if (cornerI[0] > std::max({start1[0], start2[0], end1[0], end2[0]}))continue;
-            if(cornerI[1] < std::min({start1[1], start2[1], end1[1], end2[1]})) continue;
-            else if (cornerI[1] > std::max({start1[1], start2[1], end1[1], end2[1]})) continue;
-
-            Dune::FieldVector<double, dim> vec1 = cornerI - start1;
-            Dune::FieldVector<double, dim> vec2 = cornerI - start2;
-            double cross1 = b1[0] * vec1[1] - b1[1] * vec1[0];
-            double cross2 = b2[0] * vec2[1] - b2[1] * vec2[0];
+    for(auto& v : vertices(gridView)){
         
-            
-            if(cross1 > 0) continue;
-            else if(cross2 < 0) continue;
-            height[gridView.indexSet().index(v)] = -1;
-        }
+
+        auto cornerI = v.geometry().corner(0);
+        if(cornerI[0] < std::min({start1[0], start2[0], end1[0], end2[0]})) continue; //test if trangle is outside of desired range
+        else if (cornerI[0] > std::max({start1[0], start2[0], end1[0], end2[0]}))continue;
+        if(cornerI[1] < std::min({start1[1], start2[1], end1[1], end2[1]})) continue;
+        else if (cornerI[1] > std::max({start1[1], start2[1], end1[1], end2[1]})) continue;
+
+        Dune::FieldVector<double, dim> vec1 = cornerI - start1;
+        Dune::FieldVector<double, dim> vec2 = cornerI - start2;
+        double cross1 = b1[0] * vec1[1] - b1[1] * vec1[0];
+        double cross2 = b2[0] * vec2[1] - b2[1] * vec2[0];
+    
+        
+        if(cross1 > 0) continue;
+        else if(cross2 < 0) continue;
+        height[gridView.indexSet().index(v)] = -1;
     }
+    
     return height;
 }

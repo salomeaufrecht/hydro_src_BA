@@ -34,6 +34,9 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
     Dune::FieldVector<double, dim> b1 = end1 - start1;
     Dune::FieldVector<double, dim> b2 = end2 - start2;
 
+    bool vertFlow = (std::abs(flowVector[1]) < 1e-8 && widthStart==widthEnd) ? true : false;
+    bool horFlow = (std::abs(flowVector[0]) < 1e-8 && widthStart==widthEnd) ? true : false;
+
     double minX = std::min({start1[0], start2[0], end1[0], end2[0]});
     double maxX = std::max({start1[0], start2[0], end1[0], end2[0]});
     double minY = std::min({start1[1], start2[1], end1[1], end2[1]});
@@ -69,12 +72,25 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
             //std::cout << "\n" ;
             for (int i = 0; i < 3; i++){
                 auto cornerI = element.geometry().corner(i);
-                if (cornerI[0] < minX-1 || cornerI[0] > maxX+1 || cornerI[1] < minY-1 || cornerI[1] > maxY+1){ continueElem = true; break;}
-                //std::cout << cornerI[0] << "|" << cornerI[1] << std::endl;
-                if(cornerI[0] < minX) xOut--; //test if trangle is outside of desired range
+                if (cornerI[0] < minX-1 || cornerI[0] > maxX+1 || cornerI[1] < minY-1 || cornerI[1] > maxY+1){ continueElem = true; break;} //element too far away
+                if(cornerI[0] < minX) xOut--; //test if (corner of) trangle is outside of desired range
                 else if (cornerI[0] > maxX)xOut++;
                 if(cornerI[1] < minY) yOut--;
                 else if (cornerI[1] > maxY) yOut ++;
+
+                if(horFlow){
+                    if(cornerI[1] > maxY) out1 = true;
+                    else if (cornerI[1] < minY) out2 = true;
+                    else between = true;
+                    continue;
+                }
+
+                if(vertFlow){
+                    if(cornerI[0] > maxX) out1 = true;
+                    else if (cornerI[0] < minX) out2 = true;
+                    else between = true;
+                    continue;
+                }
     
                 Dune::FieldVector<double, dim> vec1 = cornerI - start1;
                 Dune::FieldVector<double, dim> vec2 = cornerI - start2;

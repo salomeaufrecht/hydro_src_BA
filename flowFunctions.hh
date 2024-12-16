@@ -39,7 +39,7 @@ void flow(std::shared_ptr<Dune::ALUGrid<dim, dim, Dune::simplex, Dune::conformin
 
 void flowWithFragments(std::shared_ptr<Dune::ALUGrid<dim, dim, Dune::simplex, Dune::conforming>> grid,
                        flowFragment f,
-                       double minSizeFactor = 0.4);
+                       double minSizeFactor = 0.4,  double pixelSize = 90);
 
 std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, flowFragment f, std::vector<double> height);
 

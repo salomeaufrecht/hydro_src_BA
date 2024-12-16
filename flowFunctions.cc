@@ -216,7 +216,7 @@ void flow(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conformi
 }
 
 void flowWithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
-        flowFragment f, double minSizeFactor){
+        flowFragment f, double minSizeFactor, double pixelSize){
     if(f.widthStart>=1) flow(grid, f.start, f.end, f.widthStart/pixelSize, f.widthEnd/pixelSize, minSizeFactor);
     else flow(grid, f.start, f.end, f.widthStart, f.widthEnd, minSizeFactor);
 }
@@ -270,7 +270,7 @@ std::vector<double> applyFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, Du
         
         if(cross1 > 0) continue;
         else if(cross2 < 0) continue;
-        height[gridView.indexSet().index(v)] = -1;
+        height[gridView.indexSet().index(v)] = -10;
     }
     
     return height;

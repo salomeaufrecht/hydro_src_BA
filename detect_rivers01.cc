@@ -90,8 +90,34 @@
 
 #include "flowFunctions.hh"
 
+//#include <subgrid.hh>
+//#include <dune/subgrid/subgrid.hh>
 
-//#include <dune/common/subgrid.hh>
+//#include <dune/grid/common/subgrid.hh>
+
+class SubgridMarker {
+public:
+    template<typename Element>
+    bool operator()(const Element& element) const {
+        // Beispiel: Wähle Zellen, deren Zentrum in einem bestimmten Bereich liegt
+        auto center = element.geometry().center();
+        return (center[0] > 0.3 && center[0] < 0.7 &&
+                center[1] > 0.3 && center[1] < 0.7);
+    }
+};
+
+
+
+
+//void cropImage(GUInt32* p, int startX, int startY, int endX, int endY, int width){
+//      p.erase(p.begin(), p.begin()+(startY*xsize) );
+//      p.erase(p.begin()+((endY-startY+1)*xsize));
+//      int nY =endY-startY;
+//      for(int i=0; i<nY; i++){
+//        p.erase(p.end()-(nY-i)*xsize, p.end()-(nY-i)*xsize+startX);
+//        p.erase(p.end()-(nY-i)*xsize+ (endX-startX), p.end()-(nY-i)*xsize+width);
+//      }
+//  }
 
 int main(int argc, char **argv)
 {
@@ -126,42 +152,37 @@ int main(int argc, char **argv)
       GeoTIFFImage<GByte> dimage("n00e090_dir.tif", "", 1, 2);
       // second tile
 
-
-      auto data = aimage.data();
-      std::vector<int> large_accum_index;
-      std::cout << "---------------- " << data.size() << std::endl;
-      for (int i= 0; i < data.size(); i++){
-        if (data[i]<10) large_accum_index.push_back(i);
-        //std::cout <<i << ": " << data[i] <<std::endl;
-      }
-
-      int m=aimage.sizeLong(); // pixels per row
-      int n=aimage.sizeLat(); // pixels per column
-     struct flow_point
-     {
-        Dune::FieldVector<double, 2> coord;
-        double value;
-        int index;
-     };
-
-     std::vector<flow_point> large_accum;
+  //image.cropImage(1000, 1000, 3000, 3000);
+    //auto transform = image.transform();
+   
     
-    for(int index : large_accum_index){
-        int i=index%m;
-         int j=index/m;
-        large_accum.push_back(flow_point {Dune::FieldVector<double, 2> {i, j}, data[index], index});
-    }
+    // Subimage-Ausschnittsparameter
+    //int startX = 100;   // Linke obere Ecke (Pixel-Koordinaten)
+    //int startY = 50;
+    //int cutWidth = 200; // Breite des Ausschnitts
+    //int cutHeight = 150; // Höhe des Ausschnitts
 
-    //auto dir_data = dimage.data();
-    //for (int i= 0; i < dir_data.size(); i++){
-    //    std::cout <<i << ": " << std::to_string(dir_data[i]) <<std::endl;
-    //  }
-    std::vector<flowFragment> rivers;
-    for(auto point:large_accum){
-        flowFragment f = {point.coord, point.coord + Dune::FieldVector<double, 2>{0.0, 0.5}, 0.2};
-       // std::cout <<point.index << ": " << point.value << "; " << point.coord.first << "|" << point.coord.second << " dir: " << dir_data[point.index] << " ->" << dir_data[point.index]%m << "|" << dir_data[point.index]/m << std::endl;  
-       rivers.push_back(f);
-    }
+    // Neues GeoTIFF-Objekt erzeugen
+    //GeoTIFFImage<GInt16> image_part(cutWidth, cutHeight);
+    //GeoTIFFImage<GInt16> aimage_part(cutWidth, cutHeight, newTransform);
+    //GeoTIFFImage<GInt16> dimage_part(cutWidth, cutHeight, newTransform);
+
+
+    // Pixel direkt in das neue GeoTIFF schreiben
+    //for (int y = 0; y < cutHeight; ++y) {
+    //    for (int x = 0; x < cutWidth; ++x) {
+    //        image_part(x, y) = image(startX + x, startY + y);
+    //        //aimage_part(x, y) = aimage(startX + x, startY + y);
+    //        //dimage_part(x, y) = dimage(startX + x, startY + y);
+    //    }
+    //}
+    //image = image_part;
+    //aimage = aimage_part;
+    //dimage = dimage_part;
+
+    
+
+
      
       //GeoTIFFImage<GInt16> image2("n00e100_con.tif", "", 1, 2);
       //GeoTIFFImage<GUInt32> aimage2("N00E100_acc.tif", "", 1, 2);
@@ -174,11 +195,11 @@ int main(int argc, char **argv)
       double oy = image.originLat();
       const int dim = 2;
       std::array<int, dim> N;
-      N[0] = 1800;
-      N[1] = 1200;
+      N[0] = 18; //1800
+      N[1] = 12; //1200
       std::array<double, dim> H;
-      H[0] = 90.0;
-      H[1] = 90.0;
+      H[0] = 1; //90
+      H[1] = 1; //90
       Dune::FieldVector<double, dim> L;
       L[0] = N[0] * H[0];
       L[1] = N[1] * H[1];
@@ -191,12 +212,16 @@ int main(int argc, char **argv)
       auto gridp = std::make_shared<Grid>(L, N, std::bitset<dim>(0ULL), 1);
 
       // now make raster canvas in cell-centered mode
+      //auto elevation_raster = RasterDataSet<float>(500, 100, dx, dy, N[0], N[1], 0, 1);
       auto elevation_raster = RasterDataSet<float>(99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+
       elevation_raster.paste(image);
       //elevation.paste(image2);
       auto accumulation_raster = RasterDataSet<float>(99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      //auto accumulation_raster = RasterDataSet<float>(500, 100, dx, dy, N[0], N[1], 0, 1);
       accumulation_raster.paste(aimage);
       //accumulation_raster.paste(aimage2);
+      //auto direction_raster = RasterDataSet<unsigned char>(500, 100, dx, dy, N[0], N[1], 0, 1);
       auto direction_raster = RasterDataSet<unsigned char>(99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
       direction_raster.paste(dimage);
       //direction_raster.paste(dimage2);
@@ -204,6 +229,8 @@ int main(int argc, char **argv)
       // write a grid file    
       typedef Grid::LeafGridView GV;
       GV gv = gridp->leafGridView();
+
+
 
         
 
@@ -264,9 +291,107 @@ int main(int argc, char **argv)
       pvdWriter.writeTimestep(0.0, fullfilename);
 
 
+    for (int i = 0; i< N[0]; i++){
+      for (int j=0; j<N[1]; j++){
+        std::cout << "(" << i << "|" << j <<"): " <<  accumulation_raster(i, j) << std::endl;
+      }
+    }
 
 
+      struct flow_point
+     {
+        Dune::FieldVector<double, 2> coord;
+        double value;
+        //unsigned index;
+     };
+
+     std::vector<flow_point> large_accum;
+
+
+      std::vector<Dune::FieldVector<double, 2>> large_accum_index;
+      //std::cout << "---------------- " << data.size() << std::endl;
+
+      for (int i = 0; i< N[0]; i++){
+        for (int j=0; j<N[1]; j++){
+          if(accumulation_raster(i, j)>300 && accumulation_raster(i, j)< 4294967295)  {
+            large_accum.push_back({{i*H[0], j*H[1]}, accumulation_raster(i,j)});}
+        }
+      }
+
+      std::cout << large_accum.size() << std::endl;
       
+
+
+
+      int m=aimage.sizeLong(); // pixels per row
+      int n=aimage.sizeLat(); // pixels per column
+     
+    
+    //for(int index : large_accum_index){
+    //    int i=index%m;
+    //     int j=index/m;
+    //    large_accum.push_back(flow_point {Dune::FieldVector<double, 2> {i, j}, data[index], index});
+    //}
+
+    //auto dir_data = dimage.data();
+    //for (int i= 0; i < dir_data.size(); i++){
+    //    std::cout <<i << ": " << std::to_string(dir_data[i]) <<std::endl;
+    //  }
+    std::vector<flowFragment> rivers;
+    for(auto point:large_accum){
+        flowFragment f = {point.coord, point.coord + Dune::FieldVector<double, 2>{0*H[0], 0.5*H[1]}, 0.7*H[0]};
+       // std::cout <<point.index << ": " << point.value << "; " << point.coord.first << "|" << point.coord.second << " dir: " << dir_data[point.index] << " ->" << dir_data[point.index]%m << "|" << dir_data[point.index]/m << std::endl;  
+       rivers.push_back(f);
+    }
+
+
+        
+    typedef Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming > Grid_;
+    using GridView = Grid_::LeafGridView;
+
+
+    // Start with a structured grid
+    const std::array<unsigned, dim> n_ = {N[0], N[1]};
+    const Dune::FieldVector<double, dim> lower = {0, 0};
+    const Dune::FieldVector<double, dim> upper = {L[0], L[1]};
+    //const std::array<unsigned, dim> n_ = {N[0], N[1]};
+    //const Dune::FieldVector<double, dim> lower = {0, 0};
+    //const Dune::FieldVector<double, dim> upper = {L[0], L[1]};
+
+  std::cout << "make grid" << std::endl;
+    std::shared_ptr<Grid_> grid = Dune::StructuredGridFactory<Grid_>::createSimplexGrid(lower, upper, n_);
+  std::cout << "grid done" << std::endl;
+  std::cout << "make gridView" << std::endl;
+
+    const GridView gridView = grid->leafGridView();
+    std::cout << "gridview done" << std::endl;
+
+  std::vector<flowFragment> fragments;
+
+  fragments = rivers;
+
+    //for (int i =0; i <15 ; i++){
+    //  fragments.push_back(rivers[i]);
+    //  std::cout << fragments[i].start << " - " << fragments[i].end << std::endl;
+    //}
+    
+
+    for(auto& f : fragments){
+        std::cout << "refinement" << std::endl;
+        flowWithFragments(grid, f, 0.4, H[0]);
+    }
+
+    std::vector<double> height(gridView.indexSet().size(2));
+    for(auto& f : fragments){
+      std::cout << "height" << std::endl;
+      height = applyFlowHeightFragments(grid, f, height);
+    }
+    // Write grid to file
+    Dune::VTKWriter<GridView> vtkWriter(gridView);
+    vtkWriter.addVertexData(height, "height");
+    vtkWriter.write("nakthon_rivers");
+
+
     }
       return 0;
   }

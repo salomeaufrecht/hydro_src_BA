@@ -90,34 +90,7 @@
 
 #include "flowFunctions.hh"
 
-//#include <subgrid.hh>
-//#include <dune/subgrid/subgrid.hh>
 
-//#include <dune/grid/common/subgrid.hh>
-
-class SubgridMarker {
-public:
-    template<typename Element>
-    bool operator()(const Element& element) const {
-        // Beispiel: Wähle Zellen, deren Zentrum in einem bestimmten Bereich liegt
-        auto center = element.geometry().center();
-        return (center[0] > 0.3 && center[0] < 0.7 &&
-                center[1] > 0.3 && center[1] < 0.7);
-    }
-};
-
-
-
-
-//void cropImage(GUInt32* p, int startX, int startY, int endX, int endY, int width){
-//      p.erase(p.begin(), p.begin()+(startY*xsize) );
-//      p.erase(p.begin()+((endY-startY+1)*xsize));
-//      int nY =endY-startY;
-//      for(int i=0; i<nY; i++){
-//        p.erase(p.end()-(nY-i)*xsize, p.end()-(nY-i)*xsize+startX);
-//        p.erase(p.end()-(nY-i)*xsize+ (endX-startX), p.end()-(nY-i)*xsize+width);
-//      }
-//  }
 
 int main(int argc, char **argv)
 {
@@ -152,38 +125,7 @@ int main(int argc, char **argv)
       GeoTIFFImage<GByte> dimage("n00e090_dir.tif", "", 1, 2);
       // second tile
 
-  //image.cropImage(1000, 1000, 3000, 3000);
-    //auto transform = image.transform();
-   
-    
-    // Subimage-Ausschnittsparameter
-    //int startX = 100;   // Linke obere Ecke (Pixel-Koordinaten)
-    //int startY = 50;
-    //int cutWidth = 200; // Breite des Ausschnitts
-    //int cutHeight = 150; // Höhe des Ausschnitts
-
-    // Neues GeoTIFF-Objekt erzeugen
-    //GeoTIFFImage<GInt16> image_part(cutWidth, cutHeight);
-    //GeoTIFFImage<GInt16> aimage_part(cutWidth, cutHeight, newTransform);
-    //GeoTIFFImage<GInt16> dimage_part(cutWidth, cutHeight, newTransform);
-
-
-    // Pixel direkt in das neue GeoTIFF schreiben
-    //for (int y = 0; y < cutHeight; ++y) {
-    //    for (int x = 0; x < cutWidth; ++x) {
-    //        image_part(x, y) = image(startX + x, startY + y);
-    //        //aimage_part(x, y) = aimage(startX + x, startY + y);
-    //        //dimage_part(x, y) = dimage(startX + x, startY + y);
-    //    }
-    //}
-    //image = image_part;
-    //aimage = aimage_part;
-    //dimage = dimage_part;
-
-    
-
-
-     
+  
       //GeoTIFFImage<GInt16> image2("n00e100_con.tif", "", 1, 2);
       //GeoTIFFImage<GUInt32> aimage2("N00E100_acc.tif", "", 1, 2);
       //GeoTIFFImage<GByte> dimage2("n00e100_dir.tif", "", 1, 2);
@@ -195,8 +137,8 @@ int main(int argc, char **argv)
       double oy = image.originLat();
       const int dim = 2;
       std::array<int, dim> N;
-      N[0] = 18; //1800
-      N[1] = 12; //1200
+      N[0] = 60; //1800
+      N[1] = 60; //1200
       std::array<double, dim> H;
       H[0] = 1; //90
       H[1] = 1; //90
@@ -293,7 +235,7 @@ int main(int argc, char **argv)
 
     for (int i = 0; i< N[0]; i++){
       for (int j=0; j<N[1]; j++){
-        std::cout << "(" << i << "|" << j <<"): " <<  accumulation_raster(i, j) << std::endl;
+        std::cout << "(" << i << "|" << j <<"): " << int(direction_raster(i, j)) << std::endl;
       }
     }
 
@@ -308,17 +250,53 @@ int main(int argc, char **argv)
      std::vector<flow_point> large_accum;
 
 
-      std::vector<Dune::FieldVector<double, 2>> large_accum_index;
-      //std::cout << "---------------- " << data.size() << std::endl;
+
+std::vector<flowFragment> rivers;
 
       for (int i = 0; i< N[0]; i++){
         for (int j=0; j<N[1]; j++){
           if(accumulation_raster(i, j)>300 && accumulation_raster(i, j)< 4294967295)  {
-            large_accum.push_back({{i*H[0], j*H[1]}, accumulation_raster(i,j)});}
+            Dune::FieldVector<double, 2> start = {i*H[0], j*H[1]};
+             Dune::FieldVector<double, 2> end;
+             switch (int(direction_raster(i, j)))
+             {
+             case 1: end= start+ Dune::FieldVector<double, 2>{H[0], 0};
+              break;
+             case 2: end= start+ Dune::FieldVector<double, 2>{H[0],-H[1]};
+              break;
+              case 4: end= start+ Dune::FieldVector<double, 2>{0, -H[1]};
+              break;
+              case 8: end= start+ Dune::FieldVector<double, 2>{-H[0], -H[1]};
+              break;
+              case 16: end= start+ Dune::FieldVector<double, 2>{-H[0], 0};
+              break;
+              case 32: end= start+ Dune::FieldVector<double, 2>{-H[0], H[1]};
+              break;
+              case 64: end= start+ Dune::FieldVector<double, 2>{0, H[1]};
+              break;
+              case 128: end= start+ Dune::FieldVector<double, 2>{H[0], H[1]};
+              break;
+              case 255: end= start+ Dune::FieldVector<double, 2>{0, 0};
+              break;
+             default:
+              break;
+             }
+
+            flowFragment f = {start, end, 0.5*H[1]};
+
+            rivers.push_back(f);
         }
       }
+      }
 
-      std::cout << large_accum.size() << std::endl;
+      
+    //for(auto point:large_accum){
+    //    flowFragment f = {point.coord, point.coord + Dune::FieldVector<double, 2>{0*H[0], 0.5*H[1]}, 0.7*H[0]};
+    //   // std::cout <<point.index << ": " << point.value << "; " << point.coord.first << "|" << point.coord.second << " dir: " << dir_data[point.index] << " ->" << dir_data[point.index]%m << "|" << dir_data[point.index]/m << std::endl;  
+    //   rivers.push_back(f);
+    //}
+
+  
       
 
 
@@ -337,12 +315,7 @@ int main(int argc, char **argv)
     //for (int i= 0; i < dir_data.size(); i++){
     //    std::cout <<i << ": " << std::to_string(dir_data[i]) <<std::endl;
     //  }
-    std::vector<flowFragment> rivers;
-    for(auto point:large_accum){
-        flowFragment f = {point.coord, point.coord + Dune::FieldVector<double, 2>{0*H[0], 0.5*H[1]}, 0.7*H[0]};
-       // std::cout <<point.index << ": " << point.value << "; " << point.coord.first << "|" << point.coord.second << " dir: " << dir_data[point.index] << " ->" << dir_data[point.index]%m << "|" << dir_data[point.index]/m << std::endl;  
-       rivers.push_back(f);
-    }
+    
 
 
         
@@ -377,13 +350,13 @@ int main(int argc, char **argv)
     
 
     for(auto& f : fragments){
-        std::cout << "refinement" << std::endl;
+        //std::cout << "refinement" << std::endl;
         flowWithFragments(grid, f, 0.4, H[0]);
     }
 
     std::vector<double> height(gridView.indexSet().size(2));
     for(auto& f : fragments){
-      std::cout << "height" << std::endl;
+      //std::cout << "height" << std::endl;
       height = applyFlowHeightFragments(grid, f, height);
     }
     // Write grid to file

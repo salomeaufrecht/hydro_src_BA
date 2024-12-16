@@ -79,6 +79,8 @@
 #include <dune/vtk/writers/vtkunstructuredgridwriter.hh>
 #include <dune/vtk/datacollectors/yaspdatacollector.hh>
 #include <dune/vtk/datacollectors/spdatacollector.hh>
+#include <dune/grid/io/file/vtk/subsamplingvtkwriter.hh>
+
 
 // include stuff from dune-hydro
 #include <dune/hydro/nonlineardiffusionfv.hh>
@@ -89,6 +91,55 @@
 #include <dune/vtk/pvdwriter.hh>
 
 #include "flowFunctions.hh"
+
+template<typename GV>
+class MyVTKFunction
+    : public Dune::VTKFunction<GV>
+{
+  typedef typename GV::Grid::ctype DF;
+  enum
+  {
+    n = GV::dimension
+  };
+  using Entity = typename GV::Grid::template Codim<0>::Entity;
+
+public:
+  MyVTKFunction(const GV& gv_, std::vector<double>& data_, std::string s_)
+      : gv(gv_), data(data_), s(s_)
+  {
+  }
+
+  virtual int ncomps() const override
+  {
+    return 1;
+  }
+
+  virtual double evaluate(int comp, const Entity &e, const Dune::FieldVector<DF, n> &local) const override
+  {
+    auto x = e.geometry().global(local);
+    double minnorm = 1e10;
+    int mincorner;
+    for (int i=0; i<e.geometry().corners(); i++)
+    {
+      auto xc = e.geometry().corner(i);
+      xc -= x;
+      auto norm = xc.two_norm();
+      if (norm<minnorm) { minnorm=norm; mincorner=i; }
+    }
+    return data[gv.indexSet().subIndex(e,mincorner,2)];
+  }
+
+  virtual std::string name() const override
+  {
+    return s;
+  }
+
+private:
+  const GV& gv;
+  std::vector<double>& data;
+  std::string s;
+};
+
 
 
 
@@ -282,7 +333,10 @@ std::vector<flowFragment> rivers;
               break;
              }
 
-            flowFragment f = {start, end, 0.5*H[1]};
+             double width = accumulation_raster(i, j)/5000;
+             width = std::min(0.6, width);
+
+            flowFragment f = {start, end, width*H[1]};
 
             rivers.push_back(f);
         }
@@ -360,8 +414,13 @@ std::vector<flowFragment> rivers;
       height = applyFlowHeightFragments(grid, f, height);
     }
     // Write grid to file
+
+    int subsampling = 2;
+    //Dune::SubsamplingVTKWriter<GridView> vtkWriter(gridView, Dune::refinementIntervals(subsampling));
+    // auto f = std::make_shared<MyVTKFunction<GridView>>(gridView,height,"height");
     Dune::VTKWriter<GridView> vtkWriter(gridView);
     vtkWriter.addVertexData(height, "height");
+    //vtkWriter.addCellData(f);
     vtkWriter.write("nakthon_rivers");
 
 

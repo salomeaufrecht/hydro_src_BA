@@ -284,11 +284,11 @@ int main(int argc, char **argv)
       pvdWriter.writeTimestep(0.0, fullfilename);
 
 
-    for (int i = 0; i< N[0]; i++){
-      for (int j=0; j<N[1]; j++){
-        std::cout << "(" << i << "|" << j <<"): " << int(direction_raster(i, j)) << std::endl;
-      }
-    }
+    //for (int i = 0; i< N[0]; i++){
+    //  for (int j=0; j<N[1]; j++){
+    //    std::cout << "(" << i << "|" << j <<"): " << int(direction_raster(i, j)) << std::endl;
+    //  }
+    //}
 
 
       struct flow_point
@@ -349,26 +349,6 @@ std::vector<flowFragment> rivers;
     //   // std::cout <<point.index << ": " << point.value << "; " << point.coord.first << "|" << point.coord.second << " dir: " << dir_data[point.index] << " ->" << dir_data[point.index]%m << "|" << dir_data[point.index]/m << std::endl;  
     //   rivers.push_back(f);
     //}
-
-  
-      
-
-
-
-      int m=aimage.sizeLong(); // pixels per row
-      int n=aimage.sizeLat(); // pixels per column
-     
-    
-    //for(int index : large_accum_index){
-    //    int i=index%m;
-    //     int j=index/m;
-    //    large_accum.push_back(flow_point {Dune::FieldVector<double, 2> {i, j}, data[index], index});
-    //}
-
-    //auto dir_data = dimage.data();
-    //for (int i= 0; i < dir_data.size(); i++){
-    //    std::cout <<i << ": " << std::to_string(dir_data[i]) <<std::endl;
-    //  }
     
 
 
@@ -397,30 +377,32 @@ std::vector<flowFragment> rivers;
 
   fragments = rivers;
 
-    //for (int i =0; i <15 ; i++){
-    //  fragments.push_back(rivers[i]);
-    //  std::cout << fragments[i].start << " - " << fragments[i].end << std::endl;
-    //}
-    
-
     for(auto& f : fragments){
         //std::cout << "refinement" << std::endl;
         flowWithFragments(grid, f, 0.4, H[0]);
     }
 
     std::vector<double> height(gridView.indexSet().size(2));
+    // height = initializeHeight(height, elevation_raster, N[0], N[1]);
+
+
     for(auto& f : fragments){
       //std::cout << "height" << std::endl;
       height = applyFlowHeightFragments(grid, f, height);
     }
-    // Write grid to file
+
+    height = overallHeigth(grid, height, elevation_raster);
+     
+     
+     //Write grid to file
 
     int subsampling = 2;
-    //Dune::SubsamplingVTKWriter<GridView> vtkWriter(gridView, Dune::refinementIntervals(subsampling));
-    // auto f = std::make_shared<MyVTKFunction<GridView>>(gridView,height,"height");
-    Dune::VTKWriter<GridView> vtkWriter(gridView);
-    vtkWriter.addVertexData(height, "height");
-    //vtkWriter.addCellData(f);
+    Dune::SubsamplingVTKWriter<GridView> vtkWriter(gridView, Dune::refinementIntervals(subsampling));
+    auto f = std::make_shared<MyVTKFunction<GridView>>(gridView,height,"height");
+    vtkWriter.addCellData(f);
+    //Dune::VTKWriter<GridView> vtkWriter(gridView);
+    //vtkWriter.addVertexData(height, "height");
+   
     vtkWriter.write("nakthon_rivers");
 
 

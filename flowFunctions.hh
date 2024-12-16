@@ -12,6 +12,8 @@
 #include <dune/alugrid/grid.hh>
 #include <dune/alugrid/dgf.hh>
 #include <iostream>
+#include <dune/hydro/rasterdataset.hh>
+
 #include <array>
 
 
@@ -41,9 +43,16 @@ void flowWithFragments(std::shared_ptr<Dune::ALUGrid<dim, dim, Dune::simplex, Du
                        flowFragment f,
                        double minSizeFactor = 0.4,  double pixelSize = 90);
 
-std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, flowFragment f, std::vector<double> height);
+std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, flowFragment f, 
+                                            std::vector<double> height);
 
 std::vector<double> applyFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
         Dune::FieldVector<double, dim> start, Dune::FieldVector<double, dim> end, double widthStart, double widthEnd, std::vector<double> height);
+
+std::vector<double> overallHeigth(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
+                                std::vector<double> height, RasterDataSet<float> map);
+
+
+
 
 #endif // FLOWFUNCTIONS_HH

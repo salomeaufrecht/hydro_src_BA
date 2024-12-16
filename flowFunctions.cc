@@ -222,7 +222,8 @@ void flowWithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, D
 }
 
 
-std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, flowFragment f, std::vector<double> height){
+std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, flowFragment f,
+                                             std::vector<double> height){
     if(f.widthStart>=1) return applyFlowHeight(grid, f.start, f.end, f.widthStart/pixelSize, f.widthEnd/pixelSize, height);
     else return applyFlowHeight(grid, f.start, f.end, f.widthStart, f.widthEnd, height);
 }
@@ -257,6 +258,7 @@ std::vector<double> applyFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, Du
     for(auto& v : vertices(gridView)){
 
         auto cornerI = v.geometry().corner(0);
+        
         if(cornerI[0] < minX) continue; //test if vertex is outside of desired range
         else if (cornerI[0] > maxX)continue;
         if(cornerI[1] < minY) continue;
@@ -275,3 +277,28 @@ std::vector<double> applyFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, Du
     
     return height;
 }
+
+std::vector<double> overallHeigth(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
+                                std::vector<double> height, RasterDataSet<float> map){
+    typedef Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming > Grid;
+    using GridView = Grid::LeafGridView;
+    const GridView gridView = grid->leafGridView();
+
+    for(auto& v : vertices(gridView)){
+
+        auto cornerI = v.geometry().corner(0);
+        double map_val =map(int(cornerI[0]), int(cornerI[1])); 
+        map_val = std::min(map_val, 10000.0);
+        map_val = std::max(map_val, -5000.0);
+        height[gridView.indexSet().index(v)] += map_val;
+        
+        //if(std::abs(height[gridView.indexSet().index(v)] - map(int(cornerI[0]), int(cornerI[1]))+10)>1) {
+        //    height[gridView.indexSet().index(v)] += map(int(cornerI[0]), int(cornerI[1]));
+        //}
+    }
+    return height;
+}
+
+
+
+

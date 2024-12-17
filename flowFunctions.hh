@@ -26,6 +26,7 @@ struct flowFragment
     Dune::FieldVector<double, dim> end;
     double widthStart;
     double widthEnd = -1;
+    double depht = -2;
 };
 
 // Funktionen zur Berechnung von Distanzen
@@ -47,12 +48,17 @@ std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim,
                                             std::vector<double> height);
 
 std::vector<double> applyFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
-        Dune::FieldVector<double, dim> start, Dune::FieldVector<double, dim> end, double widthStart, double widthEnd, std::vector<double> height);
+        Dune::FieldVector<double, dim> start, Dune::FieldVector<double, dim> end, double widthStart, double widthEnd, double depht, std::vector<double> height);
 
 std::vector<double> overallHeigth(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
                                 std::vector<double> height, RasterDataSet<float> map);
 
 
+std::vector<double> adjustFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, flowFragment f,
+                                             std::vector<double> height);
 
+std::vector<double> adjustFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
+                                    Dune::FieldVector<double, dim> start, Dune::FieldVector<double, dim> end, double widthStart, double widthEnd, 
+                                    double depht, std::vector<double> height);
 
 #endif // FLOWFUNCTIONS_HH

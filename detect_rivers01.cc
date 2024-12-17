@@ -304,9 +304,9 @@ int main(int argc, char **argv)
 
 std::vector<flowFragment> rivers;
 
-      for (int i = 0; i< N[0]; i++){
-        for (int j=0; j<N[1]; j++){
-          if(accumulation_raster(i, j)>300 && accumulation_raster(i, j)< 4294967295)  {
+      for (int i = 1; i< N[0]-1; i++){ //TODO: start from 0 and check if end is outside
+        for (int j=1; j<N[1]-1; j++){
+          if(accumulation_raster(i, j)>50 && accumulation_raster(i, j)< 4294967295)  {
             Dune::FieldVector<double, 2> start = {i*H[0], j*H[1]};
              Dune::FieldVector<double, 2> end;
              switch (int(direction_raster(i, j)))
@@ -333,22 +333,21 @@ std::vector<flowFragment> rivers;
               break;
              }
 
-             double width = accumulation_raster(i, j)/5000;
-             width = std::min(0.6, width);
+
+            double volume = accumulation_raster(i, j);
+            double width = std::sqrt(volume/3000) * 3; //width:depht 3:1
+            double depht = std::sqrt(volume/3000);
+            width = std::min(0.6, width);
+            depht = std::min(0.4, depht);
 
             flowFragment f = {start, end, width*H[1]};
+            f.depht = depht;
 
             rivers.push_back(f);
         }
       }
       }
 
-      
-    //for(auto point:large_accum){
-    //    flowFragment f = {point.coord, point.coord + Dune::FieldVector<double, 2>{0*H[0], 0.5*H[1]}, 0.7*H[0]};
-    //   // std::cout <<point.index << ": " << point.value << "; " << point.coord.first << "|" << point.coord.second << " dir: " << dir_data[point.index] << " ->" << dir_data[point.index]%m << "|" << dir_data[point.index]/m << std::endl;  
-    //   rivers.push_back(f);
-    //}
     
 
 
@@ -393,15 +392,19 @@ std::vector<flowFragment> rivers;
 
     height = overallHeigth(grid, height, elevation_raster);
      
+    for(auto& f : fragments){
+      //std::cout << "height" << std::endl;
+      height = adjustFlowHeightFragments(grid, f, height); //TODO: make more efficient, better
+    }
      
      //Write grid to file
 
     int subsampling = 2;
-    Dune::SubsamplingVTKWriter<GridView> vtkWriter(gridView, Dune::refinementIntervals(subsampling));
-    auto f = std::make_shared<MyVTKFunction<GridView>>(gridView,height,"height");
-    vtkWriter.addCellData(f);
-    //Dune::VTKWriter<GridView> vtkWriter(gridView);
-    //vtkWriter.addVertexData(height, "height");
+    //Dune::SubsamplingVTKWriter<GridView> vtkWriter(gridView, Dune::refinementIntervals(subsampling));
+    //auto f = std::make_shared<MyVTKFunction<GridView>>(gridView,height,"height");
+    //vtkWriter.addCellData(f);
+    Dune::VTKWriter<GridView> vtkWriter(gridView);
+    vtkWriter.addVertexData(height, "height");
    
     vtkWriter.write("nakthon_rivers");
 

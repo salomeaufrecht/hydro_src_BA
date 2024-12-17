@@ -378,6 +378,7 @@ std::vector<double> adjustFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, D
         if(cross1 > 0) continue;
         else if(cross2 < 0) continue;
         if (std::abs(height[gridView.indexSet().index(v)] - mean)>standardDeviation) height[gridView.indexSet().index(v)] = mean;
+        //height[gridView.indexSet().index(v)] = -5;
     }
     
     return height;

@@ -284,61 +284,84 @@ int main(int argc, char **argv)
       pvdWriter.writeTimestep(0.0, fullfilename);
 
 
-    //for (int i = 0; i< N[0]; i++){
-    //  for (int j=0; j<N[1]; j++){
-    //    std::cout << "(" << i << "|" << j <<"): " << int(direction_raster(i, j)) << std::endl;
-    //  }
-    //}
 
 
-      struct flow_point
-     {
-        Dune::FieldVector<double, 2> coord;
-        double value;
-        //unsigned index;
-     };
-
-     std::vector<flow_point> large_accum;
-
-
-
-std::vector<flowFragment> rivers;
+  std::vector<flowFragment> rivers;
+  int size = int(N[0]*N[1]);
+  std::vector<int> skip(size, 0);
 
       for (int i = 1; i< N[0]-1; i++){ //TODO: start from 0 and check if end is outside
         for (int j=1; j<N[1]-1; j++){
+          if(skip[j*N[0]+i]==-1) {std::cout << "."; continue;}
           if(accumulation_raster(i, j)>50 && accumulation_raster(i, j)< 4294967295)  {
-            Dune::FieldVector<double, 2> start = {i*H[0], j*H[1]};
-             Dune::FieldVector<double, 2> end;
-             switch (int(direction_raster(i, j)))
-             {
-             case 1: end= start+ Dune::FieldVector<double, 2>{H[0], 0};
-              break;
-             case 2: end= start+ Dune::FieldVector<double, 2>{H[0],-H[1]};
-              break;
-              case 4: end= start+ Dune::FieldVector<double, 2>{0, -H[1]};
-              break;
-              case 8: end= start+ Dune::FieldVector<double, 2>{-H[0], -H[1]};
-              break;
-              case 16: end= start+ Dune::FieldVector<double, 2>{-H[0], 0};
-              break;
-              case 32: end= start+ Dune::FieldVector<double, 2>{-H[0], H[1]};
-              break;
-              case 64: end= start+ Dune::FieldVector<double, 2>{0, H[1]};
-              break;
-              case 128: end= start+ Dune::FieldVector<double, 2>{H[0], H[1]};
-              break;
-              case 255: end= start+ Dune::FieldVector<double, 2>{0, 0};
-              break;
-             default:
-              break;
-             }
 
+            Dune::FieldVector<double, 2> start = {i, j};
+             Dune::FieldVector<double, 2> end = start;
+             
+
+             int dir = int(direction_raster(i, j));
+             //std::cout <<"corr dir: " << dir << ", end: " << end << std::endl;
+
+             int endI=round(end[0]);
+             int endJ = round(end[1]);
+             int endDir = int(direction_raster(endI, endJ));
+             
+
+            while (endDir == dir){
+              
+              //std::cout << " enddir: " << endDir << ", dir:" << dir << ", end:" << end << std::endl;
+              skip[endJ*N[0]+endI]=-1;
+              
+              Dune::FieldVector<double, 2> currPoint = end;
+              switch (dir)
+              {
+              case 1: end= currPoint+ Dune::FieldVector<double, 2>{1, 0};
+                break;
+              case 2: end= currPoint+ Dune::FieldVector<double, 2>{1,-1};
+                break;
+                case 4: end= currPoint+ Dune::FieldVector<double, 2>{0, -1};
+                break;
+                case 8: end= currPoint+ Dune::FieldVector<double, 2>{-1, -1};
+                break;
+                case 16: end= currPoint+ Dune::FieldVector<double, 2>{-1, 0};
+                break;
+                case 32: end= currPoint+ Dune::FieldVector<double, 2>{-1, 1};
+                break;
+                case 64: end= currPoint+ Dune::FieldVector<double, 2>{0, 1};
+                break;
+                case 128: end= currPoint+ Dune::FieldVector<double, 2>{1, 1};
+                break;
+                case 255: end= currPoint+ Dune::FieldVector<double, 2>{0, 0};
+                break;
+              default:
+                break;
+              }
+              
+
+              if(end[0] > N[0]-1 || end[1]>N[1]-1 || end[0] <1 || end[1]<1) {
+                end=currPoint; 
+                break;}
+          
+             endI=round(end[0]); 
+             endJ = round(end[1]);
+             endDir = int(direction_raster(endI, endJ));
+
+              //std::cout << "new enddir: " << endDir<< ", new end: " << end << std::endl;
+
+            }
+
+            skip[j*N[0]+i] =0; //start should not be skipped
 
             double volume = accumulation_raster(i, j);
             double width = std::sqrt(volume/3000) * 3; //width:depht 3:1
             double depht = std::sqrt(volume/3000);
             width = std::min(0.6, width);
             depht = std::min(0.4, depht);
+
+            start[0] = start[0]*H[0];
+            start[1] = start[1]*H[1];
+            end[0] = end[0]*H[0];
+            end[1] = end[1]*H[1];
 
             flowFragment f = {start, end, width*H[1]};
             f.depht = depht;
@@ -360,9 +383,7 @@ std::vector<flowFragment> rivers;
     const std::array<unsigned, dim> n_ = {N[0], N[1]};
     const Dune::FieldVector<double, dim> lower = {0, 0};
     const Dune::FieldVector<double, dim> upper = {L[0], L[1]};
-    //const std::array<unsigned, dim> n_ = {N[0], N[1]};
-    //const Dune::FieldVector<double, dim> lower = {0, 0};
-    //const Dune::FieldVector<double, dim> upper = {L[0], L[1]};
+
 
   std::cout << "make grid" << std::endl;
     std::shared_ptr<Grid_> grid = Dune::StructuredGridFactory<Grid_>::createSimplexGrid(lower, upper, n_);
@@ -377,25 +398,34 @@ std::vector<flowFragment> rivers;
   fragments = rivers;
 
     for(auto& f : fragments){
-        //std::cout << "refinement" << std::endl;
-        flowWithFragments(grid, f, 0.4, H[0]);
+     int endI=round(f.start[0]/H[0]);
+      int endJ = round(f.start[1]/H[1]);
+      if(skip[endJ*N[0]+endI]==-1) continue;
+      flowWithFragments(grid, f, 0.5, H[0]);
     }
 
     std::vector<double> height(gridView.indexSet().size(2));
     // height = initializeHeight(height, elevation_raster, N[0], N[1]);
 
-
+  int c = 0;
     for(auto& f : fragments){
-      //std::cout << "height" << std::endl;
+     int endI=round(f.start[0]/H[0]);
+      int endJ = round(f.start[1]/H[1]);
+      if(skip[endJ*N[0]+endI]==-1){std::cout << "."; continue;}
+      c++;
       height = applyFlowHeightFragments(grid, f, height);
     }
+    std::cout << c << std::endl;
 
     height = overallHeigth(grid, height, elevation_raster);
      
-    for(auto& f : fragments){
-      //std::cout << "height" << std::endl;
-      height = adjustFlowHeightFragments(grid, f, height); //TODO: make more efficient, better
-    }
+    //for(auto& f : fragments){
+    //  int endI=round(f.start[0]/H[0]);
+    //  int endJ = round(f.start[1]/H[1]);
+    //  if(skip[endJ*N[0]+endI]==-1) continue;
+    //  //std::cout << "height" << std::endl;
+    //  height = adjustFlowHeightFragments(grid, f, height); //TODO: make more efficient, better
+    //}
      
      //Write grid to file
 

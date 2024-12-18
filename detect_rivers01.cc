@@ -305,6 +305,9 @@ int main(int argc, char **argv)
              int endI=round(end[0]);
              int endJ = round(end[1]);
              int endDir = int(direction_raster(endI, endJ));
+
+             double accStart = accumulation_raster(i, j);
+             double accEnd = accStart;
              
 
             while (endDir == dir){
@@ -336,23 +339,28 @@ int main(int argc, char **argv)
               default:
                 break;
               }
-              
 
-              if(end[0] > N[0]-1 || end[1]>N[1]-1 || end[0] <1 || end[1]<1) {
-                end=currPoint; 
-                break;}
-          
-             endI=round(end[0]); 
-             endJ = round(end[1]);
-             endDir = int(direction_raster(endI, endJ));
+              endI = round(end[0]); 
+              endJ = round(end[1]);
+              endDir = int(direction_raster(endI, endJ));
+              accEnd = accumulation_raster(endI, endJ);
+
+              if(end[0] > N[0]-1 || end[1]>N[1]-1 || end[0] <1 || end[1]<1 || std::abs(accStart-accEnd)>200) {
+                if(currPoint==start &&  std::abs(accStart-accEnd)>100){break;}
+                end=currPoint;
+                endI = round(end[0]); 
+                endJ = round(end[1]);
+                skip[endJ*N[0]+endI]=0; //end should not be skipped
+                accEnd = accumulation_raster(endI, endJ); 
+                break;
+                }
 
               //std::cout << "new enddir: " << endDir<< ", new end: " << end << std::endl;
 
             }
 
             skip[j*N[0]+i] =0; //start should not be skipped
-
-            double volume = accumulation_raster(i, j);
+            double volume = (accStart+accEnd)/2;
             double width = std::sqrt(volume/3000) * 3; //width:depht 3:1
             double depht = std::sqrt(volume/3000);
             width = std::min(0.6, width);
@@ -365,6 +373,7 @@ int main(int argc, char **argv)
 
             flowFragment f = {start, end, width*H[1]};
             f.depht = depht;
+            //std::cout << "depht: " << depht << ", width: " << width << ", start: " << start << ", end: " << end << std::endl;
 
             rivers.push_back(f);
         }
@@ -387,6 +396,7 @@ int main(int argc, char **argv)
 
   std::cout << "make grid" << std::endl;
     std::shared_ptr<Grid_> grid = Dune::StructuredGridFactory<Grid_>::createSimplexGrid(lower, upper, n_);
+    //grid->globalRefine(1); for conforming
   std::cout << "grid done" << std::endl;
   std::cout << "make gridView" << std::endl;
 

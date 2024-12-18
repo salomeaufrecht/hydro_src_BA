@@ -288,8 +288,9 @@ std::vector<double> overallHeigth(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune:
 
         auto cornerI = v.geometry().corner(0);
         double map_val =map(int(cornerI[0]), int(cornerI[1])); 
+        if(map_val < -5000 || map_val > 10000) map_val = 0;
         map_val = std::min(map_val, 10000.0);
-        map_val = std::max(map_val, -5000.0);
+        map_val = std::max(map_val, -3000.0);
         height[gridView.indexSet().index(v)] += map_val;
         
     }

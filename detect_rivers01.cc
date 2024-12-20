@@ -188,8 +188,8 @@ int main(int argc, char **argv)
       double oy = image.originLat();
       const int dim = 2;
       std::array<int, dim> N;
-      N[0] = 60; //1800
-      N[1] = 60; //1200
+      N[0] = 600; //1800
+      N[1] = 600; //1200
       std::array<double, dim> H;
       H[0] = 1; //90
       H[1] = 1; //90
@@ -345,8 +345,8 @@ int main(int argc, char **argv)
               endDir = int(direction_raster(endI, endJ));
               accEnd = accumulation_raster(endI, endJ);
 
-              if(end[0] > N[0]-1 || end[1]>N[1]-1 || end[0] <1 || end[1]<1 || std::abs(accStart-accEnd)>200) {
-                if(currPoint==start &&  std::abs(accStart-accEnd)>100){break;}
+              if(end[0] > N[0] || end[1]>N[1] || end[0] <0 || end[1]<0 || std::abs(accStart-accEnd)>200) {
+                if(currPoint==start &&  std::abs(accStart-accEnd)>200){break;}
                 end=currPoint;
                 endI = round(end[0]); 
                 endJ = round(end[1]);
@@ -374,6 +374,7 @@ int main(int argc, char **argv)
             flowFragment f = {start, end, width*H[1]};
             f.depht = depht;
             //std::cout << "depht: " << depht << ", width: " << width << ", start: " << start << ", end: " << end << std::endl;
+            if(depht < 0.1) std::cout <<"dR " << depht << std::endl;
 
             rivers.push_back(f);
         }
@@ -407,14 +408,18 @@ int main(int argc, char **argv)
 
   fragments = rivers;
 
-    for(auto& f : fragments){
-     int endI=round(f.start[0]/H[0]);
-      int endJ = round(f.start[1]/H[1]);
-      if(skip[endJ*N[0]+endI]==-1) continue;
-      flowWithFragments(grid, f, 0.5, H[0]);
-    }
+    //for(auto& f : fragments){
+    // int endI=round(f.start[0]/H[0]);
+    //  int endJ = round(f.start[1]/H[1]);
+    //  if(skip[endJ*N[0]+endI]==-1) continue;
+    //  flowWithFragments(grid, f, 0.5, H[0]);
+    //}
 
-    std::vector<double> height(gridView.indexSet().size(2));
+    std::cout << "f1 done" << std::endl;
+    flowWithFragments2(grid, fragments, 0.5, H[0]); //TODO skip fragments
+    std::cout << "f2 done" << std::endl;
+
+    std::vector<double> height(gridView.indexSet().size(2), 0);
     // height = initializeHeight(height, elevation_raster, N[0], N[1]);
 
   int c = 0;
@@ -426,7 +431,7 @@ int main(int argc, char **argv)
       height = applyFlowHeightFragments(grid, f, height);
     }
     std::cout << c << std::endl;
-
+//
     height = overallHeigth(grid, height, elevation_raster);
      
     //for(auto& f : fragments){

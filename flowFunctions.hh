@@ -29,6 +29,19 @@ struct flowFragment
     double depht = -2;
 };
 
+struct fragmentBoundaries{
+    Dune::FieldVector<double, dim> start1;
+    Dune::FieldVector<double, dim> start2;
+    Dune::FieldVector<double, dim> b1;
+    Dune::FieldVector<double, dim> b2;
+    double minX;
+    double maxX;
+    double minY;
+    double maxY;
+    int direction = 0; //0: any; 1: horizontal; 2: vertikal; 3: diagonal
+    double minSize;
+};
+
 // Funktionen zur Berechnung von Distanzen
 double squaredDistance(Dune::FieldVector<double, dim> p1, Dune::FieldVector<double, dim> p2);
 
@@ -60,5 +73,8 @@ std::vector<double> adjustFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim
 std::vector<double> adjustFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
                                     Dune::FieldVector<double, dim> start, Dune::FieldVector<double, dim> end, double widthStart, double widthEnd, 
                                     double depht, std::vector<double> height);
+
+void flowWithFragments2(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
+        std::vector<flowFragment> fragments, double minSizeFactor, double pixelSize);
 
 #endif // FLOWFUNCTIONS_HH

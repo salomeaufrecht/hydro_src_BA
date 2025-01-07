@@ -188,10 +188,10 @@ int main(int argc, char **argv)
       double oy = image.originLat();
       const int dim = 2;
       std::array<int, dim> N;
-      N[0] = 600; //1800
-      N[1] = 600; //1200
+      N[0] = 50; //1800
+      N[1] = 50; //1200
       std::array<double, dim> H;
-      H[0] = 1; //90
+      H[0] = 1; //90 //TODO set to arbtratry number
       H[1] = 1; //90
       Dune::FieldVector<double, dim> L;
       L[0] = N[0] * H[0];
@@ -284,7 +284,7 @@ int main(int argc, char **argv)
       pvdWriter.writeTimestep(0.0, fullfilename);
 
 
-
+  std::cout << accumulation_raster(1, 1) << " - " << accumulation_raster(1, 2) << std::endl;
 
   std::vector<flowFragment> rivers;
   int size = int(N[0]*N[1]);
@@ -374,7 +374,7 @@ int main(int argc, char **argv)
             flowFragment f = {start, end, width*H[1]};
             f.depht = depht;
             //std::cout << "depht: " << depht << ", width: " << width << ", start: " << start << ", end: " << end << std::endl;
-            if(depht < 0.1) std::cout <<"dR " << depht << std::endl;
+            if(depht < 0.01) std::cout <<"dR " << depht << std::endl;
 
             rivers.push_back(f);
         }
@@ -422,15 +422,17 @@ int main(int argc, char **argv)
     std::vector<double> height(gridView.indexSet().size(2), 0);
     // height = initializeHeight(height, elevation_raster, N[0], N[1]);
 
-  int c = 0;
-    for(auto& f : fragments){
-     int endI=round(f.start[0]/H[0]);
-      int endJ = round(f.start[1]/H[1]);
-      if(skip[endJ*N[0]+endI]==-1){std::cout << "."; continue;}
-      c++;
-      height = applyFlowHeightFragments(grid, f, height);
-    }
-    std::cout << c << std::endl;
+    height= applyFlowHeightFragments2(grid, fragments, height);
+
+  //int c = 0;
+  //  for(auto& f : fragments){
+  //   int endI=round(f.start[0]/H[0]);
+  //    int endJ = round(f.start[1]/H[1]);
+  //    if(skip[endJ*N[0]+endI]==-1){std::cout << "."; continue;}
+  //    c++;
+  //    height = applyFlowHeightFragments(grid, f, height);
+  //  }
+  //  std::cout << c << std::endl;
 //
     height = overallHeigth(grid, height, elevation_raster);
      

@@ -304,9 +304,9 @@ std::vector<double> overallHeigth(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune:
 
         auto cornerI = v.geometry().corner(0);
         double map_val =map(int(cornerI[0]), int(cornerI[1])); 
-        if(map_val < -5000 || map_val > 10000) map_val = 0;
-        map_val = std::min(map_val, 10000.0);
-        map_val = std::max(map_val, -3000.0);
+        if(map_val < -5000 || map_val > 1000) map_val = 0;
+        //map_val = std::min(map_val, 10000.0);
+        //map_val = std::max(map_val, -3000.0);
         height[gridView.indexSet().index(v)] += map_val;
         
     }
@@ -399,6 +399,94 @@ std::vector<double> adjustFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, D
     }
     
     return height;
+}
+
+
+
+std::vector<double> applyFlowHeightFragments2(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
+        std::vector<flowFragment> fragments, std::vector<double> height){
+
+    typedef Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming > Grid;
+    using GridView = Grid::LeafGridView;
+    const GridView gridView = grid->leafGridView();
+
+
+    std::vector<fragmentBoundaries> fragmentsBoundaries;
+
+    for (auto f : fragments){
+        if(f.end==f.start){
+            std::cout << "flow without end" << std::endl;
+            f.end[0] -=0.001;
+            f.end[1] -=0.001;
+        }
+        
+        Dune::FieldVector<double, dim> flowVector = f.end - f.start;
+        Dune::FieldVector<double, dim> normal_flowVector = { -flowVector[1]/ std::sqrt(flowVector[0]*flowVector[0] + flowVector[1]*flowVector[1]), 
+                                                        flowVector[0]/ std::sqrt(flowVector[0]*flowVector[0] + flowVector[1]*flowVector[1])} ;
+
+        if (f.widthEnd < 0) f.widthEnd = f.widthStart;
+
+        Dune::FieldVector<double, dim> start1 = f.start + (f.widthStart/2) * normal_flowVector;
+        Dune::FieldVector<double, dim> start2 = f.start - (f.widthStart/2) * normal_flowVector;
+        Dune::FieldVector<double, dim> end1 = f.end + (f.widthEnd/2) * normal_flowVector;
+        Dune::FieldVector<double, dim> end2 = f.end - (f.widthEnd/2) * normal_flowVector;
+
+        Dune::FieldVector<double, dim> b1 = end1 - start1;
+        Dune::FieldVector<double, dim> b2 = end2 - start2;
+
+        int direction = 0;
+        direction = (std::abs(flowVector[1]) < 1e-8 && f.widthStart==f.widthEnd) ? 1 : 0;
+        direction = (std::abs(flowVector[0]) < 1e-8 && f.widthStart==f.widthEnd) ? 2 : 0;
+        direction = ((std::abs(flowVector[0] + flowVector[1]) < 1e-8 || std::abs(flowVector[0] - flowVector[1]) < 1e-8) && f.widthStart==f.widthEnd) ? 3 : 0;
+
+
+        double minX = std::min({start1[0], start2[0], end1[0], end2[0]});
+        double maxX = std::max({start1[0], start2[0], end1[0], end2[0]});
+        double minY = std::min({start1[1], start2[1], end1[1], end2[1]});
+        double maxY = std::max({start1[1], start2[1], end1[1], end2[1]});
+
+        
+
+        fragmentBoundaries fB = fragmentBoundaries{start1, start2, b1, b2, minX, maxX, minY, maxY, direction};
+        fB.depht = f.depht;
+
+        fragmentsBoundaries.push_back(fB);
+ 
+    }
+
+   
+    
+    for(auto& v : vertices(gridView)){
+        auto cornerI = v.geometry().corner(0);
+
+ 
+        for (const auto& fB : fragmentsBoundaries){
+
+    
+            if(cornerI[0] < fB.minX) continue; //test if vertex is outside of desired range
+            else if (cornerI[0] > fB.maxX)continue;
+            if(cornerI[1] < fB.minY) continue;
+            else if (cornerI[1] > fB.maxY) continue;
+
+            if (fB.direction == 0 || fB.direction == 3){
+
+                //TODO hor/vert flow
+                Dune::FieldVector<double, dim> vec1 = cornerI - fB.start1;
+                Dune::FieldVector<double, dim> vec2 = cornerI - fB.start2;
+                double cross1 = fB.b1[0] * vec1[1] - fB.b1[1] * vec1[0];
+                double cross2 = fB.b2[0] * vec2[1] - fB.b2[1] * vec2[0];
+                
+                if(cross1 > 0) continue;
+                else if(cross2 < 0) continue;
+            }
+            height[gridView.indexSet().index(v)] = -fB.depht;
+        }
+    }
+    
+    return height;
+    
+
+
 }
 
 void flowWithFragments2(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 

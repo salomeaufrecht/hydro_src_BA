@@ -39,7 +39,8 @@ struct fragmentBoundaries{
     double minY;
     double maxY;
     int direction = 0; //0: any; 1: horizontal; 2: vertikal; 3: diagonal
-    double minSize;
+    double minSize = 0.1;
+    double depht = 0;
 };
 
 // Funktionen zur Berechnung von Distanzen
@@ -62,6 +63,9 @@ std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim,
 
 std::vector<double> applyFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
         Dune::FieldVector<double, dim> start, Dune::FieldVector<double, dim> end, double widthStart, double widthEnd, double depht, std::vector<double> height);
+
+std::vector<double> applyFlowHeightFragments2(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
+        std::vector<flowFragment> fragments, std::vector<double> height);
 
 std::vector<double> overallHeigth(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
                                 std::vector<double> height, RasterDataSet<float> map);

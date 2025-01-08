@@ -288,25 +288,23 @@ std::vector<double> applyFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, Du
         if(cross1 > 0) continue;
         else if(cross2 < 0) continue;
         if(cornerI[0]<2 && cornerI[1]<2) std::cout  << start << "-" << end << ", " << widthStart << "-||- " << start1 << " -- " << end1 << " -||- " << start2 << " -- " <<end2 << std::endl;
-        height[gridView.indexSet().index(v)] = -depht;
+        height[gridView.indexSet().index(v)] = -depht; 
     }
     
     return height;
 }
 
 std::vector<double> overallHeigth(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
-                                std::vector<double> height, RasterDataSet<float> map){
+                                std::vector<double> height, RasterDataSet<float> map, std::array<double, 2> H){
     typedef Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming > Grid;
     using GridView = Grid::LeafGridView;
     const GridView gridView = grid->leafGridView();
 
     for(auto& v : vertices(gridView)){
-
         auto cornerI = v.geometry().corner(0);
-        double map_val =map(int(cornerI[0]), int(cornerI[1])); 
+        double map_val =map(int(cornerI[0]/H[0]), int(cornerI[1]/H[1])); 
         if(map_val < -5000 || map_val > 1000) map_val = 0;
-        //map_val = std::min(map_val, 10000.0);
-        //map_val = std::max(map_val, -3000.0);
+
         height[gridView.indexSet().index(v)] += map_val;
         
     }
@@ -485,8 +483,6 @@ std::vector<double> applyFlowHeightFragments2(std::shared_ptr<Dune::ALUGrid< dim
     
     return height;
     
-
-
 }
 
 void flowWithFragments2(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 

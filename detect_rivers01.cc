@@ -368,13 +368,13 @@ int main(int argc, char **argv)
             width = std::min(0.6, width);
             depht = std::min(0.4, depht);
 
-            std::cout << "\noriginal: " << start  << std::endl;
+            //std::cout << "\noriginal: " << start  << std::endl;
             start[0] = (start[0] + 1) * ((N[0]-1.0)/N[0]) * H[0];// + 0.5; //cell centered date vs corner data (50 cells on lenght 0.5-49.5 = 49)
             start[1] = (start[1] + 1) * ((N[1]-1.0)/N[1]) * H[1];// + 0.5;
             end[0]   = (end[0]   + 1) * ((N[0]-1.0)/N[0]) * H[0];// + 0.5;
             end[1]   = (end[1]   + 1) * ((N[1]-1.0)/N[1]) * H[1];// + 0.5;
 
-            std::cout << "rescaled: " <<  start << std::endl;
+            //std::cout << "rescaled: " <<  start << std::endl;
             flowFragment f = {start, end, width*H[1]};
             f.depht = depht;
             //std::cout << "depht: " << depht << ", width: " << width << ", start: " << start << ", end: " << end << std::endl;
@@ -439,7 +439,7 @@ int main(int argc, char **argv)
   //  }
   //  std::cout << c << std::endl;
 //
-    height = overallHeigth(grid, height, elevation_raster);
+    height = overallHeigth(grid, height, elevation_raster, H);
      
     //for(auto& f : fragments){
     //  int endI=round(f.start[0]/H[0]);

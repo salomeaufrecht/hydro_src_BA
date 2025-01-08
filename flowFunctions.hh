@@ -68,7 +68,7 @@ std::vector<double> applyFlowHeightFragments2(std::shared_ptr<Dune::ALUGrid< dim
         std::vector<flowFragment> fragments, std::vector<double> height);
 
 std::vector<double> overallHeigth(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
-                                std::vector<double> height, RasterDataSet<float> map);
+                                std::vector<double> height, RasterDataSet<float> map, std::array<double, 2> H);
 
 
 std::vector<double> adjustFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, flowFragment f,

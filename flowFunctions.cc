@@ -490,7 +490,7 @@ std::vector<double> applyFlowHeightFragments2(std::shared_ptr<Dune::ALUGrid< dim
 }
 
 void flowWithFragments2(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
-        std::vector<flowFragment> fragments, double minSizeFactor, double pixelSize){
+        std::vector<flowFragment> fragments, double minSizeFactor, std::array<double, 2> pixelSize){
     
 
     typedef Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming > Grid;
@@ -566,7 +566,7 @@ void flowWithFragments2(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, 
                     //std::cout << i << std::endl;
                     auto cornerI = element.geometry().corner(i); //TODO replace
                     //std::cout << cornerI << std::endl;
-                    if (cornerI[0] < fB.minX-1 || cornerI[0] > fB.maxX+1 || cornerI[1] < fB.minY-1 || cornerI[1] > fB.maxY+1){  continueFragment = true; break;} //element too far away
+                    if (cornerI[0] < fB.minX-pixelSize[0] || cornerI[0] > fB.maxX+pixelSize[0] || cornerI[1] < fB.minY-pixelSize[1] || cornerI[1] > fB.maxY+pixelSize[1]){  continueFragment = true; break;} //element too far away
                     if(cornerI[0] < fB.minX) xOut--; //test if (corner of) trangle is outside of desired range
                     else if (cornerI[0] > fB.maxX)xOut++;
                     if(cornerI[1] < fB.minY) yOut--;

@@ -191,8 +191,8 @@ int main(int argc, char **argv)
       N[0] = 50; //1800
       N[1] = 50; //1200
       std::array<double, dim> H;
-      H[0] = 1; //90 //TODO set to arbtratry number
-      H[1] = 1; //90
+      H[0] = 10; //90 //TODO set to arbtratry number
+      H[1] = 10; //90
       Dune::FieldVector<double, dim> L;
       L[0] = N[0] * H[0];
       L[1] = N[1] * H[1];
@@ -206,16 +206,16 @@ int main(int argc, char **argv)
 
       // now make raster canvas in cell-centered mode
       //auto elevation_raster = RasterDataSet<float>(500, 100, dx, dy, N[0], N[1], 0, 1);
-      auto elevation_raster = RasterDataSet<float>(99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      auto elevation_raster = RasterDataSet<float>(99.9 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0
 
       elevation_raster.paste(image);
       //elevation.paste(image2);
-      auto accumulation_raster = RasterDataSet<float>(99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      auto accumulation_raster = RasterDataSet<float>(99.9 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
       //auto accumulation_raster = RasterDataSet<float>(500, 100, dx, dy, N[0], N[1], 0, 1);
       accumulation_raster.paste(aimage);
       //accumulation_raster.paste(aimage2);
       //auto direction_raster = RasterDataSet<unsigned char>(500, 100, dx, dy, N[0], N[1], 0, 1);
-      auto direction_raster = RasterDataSet<unsigned char>(99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      auto direction_raster = RasterDataSet<unsigned char>(99.9 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
       direction_raster.paste(dimage);
       //direction_raster.paste(dimage2);
 
@@ -290,10 +290,12 @@ int main(int argc, char **argv)
   int size = int(N[0]*N[1]);
   std::vector<int> skip(size, 0);
 
+  int counter = 0;
+
       for (int i = 1; i< N[0]-1; i++){ //TODO: start from 0 and check if end is outside
         for (int j=1; j<N[1]-1; j++){
           if(skip[j*N[0]+i]==-1) {std::cout << "."; continue;}
-          if(accumulation_raster(i, j)>50 && accumulation_raster(i, j)< 4294967295)  {
+          if(accumulation_raster(i, j)>50){ //} && accumulation_raster(i, j)< 4294967295)  {
 
             Dune::FieldVector<double, 2> start = {i, j};
              Dune::FieldVector<double, 2> end = start;
@@ -302,8 +304,8 @@ int main(int argc, char **argv)
              int dir = int(direction_raster(i, j));
              //std::cout <<"corr dir: " << dir << ", end: " << end << std::endl;
 
-             int endI=round(end[0]);
-             int endJ = round(end[1]);
+             int endI=  int(end[0]); //round(end[0]);
+             int endJ = int(end[1]); //round(end[1]);
              int endDir = int(direction_raster(endI, endJ));
 
              double accStart = accumulation_raster(i, j);
@@ -340,16 +342,16 @@ int main(int argc, char **argv)
                 break;
               }
 
-              endI = round(end[0]); 
-              endJ = round(end[1]);
+              endI = int(end[0]); //round(end[0]); 
+              endJ = int(end[1]); //round(end[1]);
               endDir = int(direction_raster(endI, endJ));
               accEnd = accumulation_raster(endI, endJ);
 
               if(end[0] > N[0] || end[1]>N[1] || end[0] <0 || end[1]<0 || std::abs(accStart-accEnd)>200) {
                 if(currPoint==start &&  std::abs(accStart-accEnd)>200){break;}
                 end=currPoint;
-                endI = round(end[0]); 
-                endJ = round(end[1]);
+                endI = int(end[0]); //round(end[0]); 
+                endJ = int(end[1]); //round(end[1]);
                 skip[endJ*N[0]+endI]=0; //end should not be skipped
                 accEnd = accumulation_raster(endI, endJ); 
                 break;
@@ -366,22 +368,25 @@ int main(int argc, char **argv)
             width = std::min(0.6, width);
             depht = std::min(0.4, depht);
 
-            start[0] = start[0]*H[0];
-            start[1] = start[1]*H[1];
-            end[0] = end[0]*H[0];
-            end[1] = end[1]*H[1];
+            std::cout << "\noriginal: " << start  << std::endl;
+            start[0] = (start[0] + 1) * ((N[0]-1.0)/N[0]) * H[0];// + 0.5; //cell centered date vs corner data (50 cells on lenght 0.5-49.5 = 49)
+            start[1] = (start[1] + 1) * ((N[1]-1.0)/N[1]) * H[1];// + 0.5;
+            end[0]   = (end[0]   + 1) * ((N[0]-1.0)/N[0]) * H[0];// + 0.5;
+            end[1]   = (end[1]   + 1) * ((N[1]-1.0)/N[1]) * H[1];// + 0.5;
 
+            std::cout << "rescaled: " <<  start << std::endl;
             flowFragment f = {start, end, width*H[1]};
             f.depht = depht;
             //std::cout << "depht: " << depht << ", width: " << width << ", start: " << start << ", end: " << end << std::endl;
             if(depht < 0.01) std::cout <<"dR " << depht << std::endl;
 
             rivers.push_back(f);
+            counter++;
         }
       }
       }
 
-    
+    std::cout << counter << " fragments" << std::endl;
 
 
         
@@ -391,8 +396,8 @@ int main(int argc, char **argv)
 
     // Start with a structured grid
     const std::array<unsigned, dim> n_ = {N[0], N[1]};
-    const Dune::FieldVector<double, dim> lower = {0, 0};
-    const Dune::FieldVector<double, dim> upper = {L[0], L[1]};
+    const Dune::FieldVector<double, dim> lower = {0.5 * H[0], 0.5 * H[1]};
+    const Dune::FieldVector<double, dim> upper = {L[0] - 0.5 * H[0], L[1] - 0.5 * H[1]};
 
 
   std::cout << "make grid" << std::endl;
@@ -406,7 +411,7 @@ int main(int argc, char **argv)
 
   std::vector<flowFragment> fragments;
 
-  fragments = rivers;
+  fragments = rivers; //TODO delete skipped ones (skipped after insertion)
 
     //for(auto& f : fragments){
     // int endI=round(f.start[0]/H[0]);
@@ -416,7 +421,7 @@ int main(int argc, char **argv)
     //}
 
     std::cout << "f1 done" << std::endl;
-    flowWithFragments2(grid, fragments, 0.5, H[0]); //TODO skip fragments
+    flowWithFragments2(grid, fragments, 0.5, H); //TODO skip fragments
     std::cout << "f2 done" << std::endl;
 
     std::vector<double> height(gridView.indexSet().size(2), 0);

@@ -64,7 +64,7 @@ std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim,
 std::vector<double> applyFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
         Dune::FieldVector<double, dim> start, Dune::FieldVector<double, dim> end, double widthStart, double widthEnd, double depht, std::vector<double> height);
 
-std::vector<double> applyFlowHeightFragments2(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
+std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
         std::vector<flowFragment> fragments, std::vector<double> height);
 
 std::vector<double> overallHeigth(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
@@ -78,7 +78,7 @@ std::vector<double> adjustFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, D
                                     Dune::FieldVector<double, dim> start, Dune::FieldVector<double, dim> end, double widthStart, double widthEnd, 
                                     double depht, std::vector<double> height);
 
-void flowWithFragments2(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
+void flowWithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
         std::vector<flowFragment> fragments, double minSizeFactor, std::array<double, 2> pixelSize);
 
 #endif // FLOWFUNCTIONS_HH

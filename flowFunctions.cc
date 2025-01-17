@@ -60,8 +60,8 @@ std::vector<fragmentBoundaries> calcFragmentBoundaries(std::vector<flowFragment>
     return fragmentsBoundaries;
 }
 
-std::vector<double> overallHeigth(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
-                                std::vector<double> height, RasterDataSet<float> map, std::array<double, 2> H){
+std::vector<double> overallHeight(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
+                                std::vector<double> height, RasterDataSet<float> map, std::array<double, 2> cellSize){
 
     typedef Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming > Grid;
     using GridView = Grid::LeafGridView;
@@ -69,7 +69,7 @@ std::vector<double> overallHeigth(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune:
 
     for(auto& v : vertices(gridView)){
         auto cornerI = v.geometry().corner(0);
-        double map_val =map(int(cornerI[0]/H[0]), int(cornerI[1]/H[1])); 
+        double map_val =map(int(cornerI[0]/cellSize[0]), int(cornerI[1]/cellSize[1])); 
         if(map_val < -5000 || map_val > 10000) map_val = 0; //wrong values
 
         height[gridView.indexSet().index(v)] += map_val; //add height value bc rivers are stored in height as -depht --> results in height-depht as value
@@ -89,8 +89,6 @@ std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim,
 
     std::vector<fragmentBoundaries> fragmentsBoundaries = calcFragmentBoundaries(fragments);
 
-    
-  
     
     for(auto& v : vertices(gridView)){ //check for each vertex if its part of a fragment
         auto cornerI = v.geometry().corner(0); //avoid recomputation
@@ -118,17 +116,15 @@ std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim,
     return height;
 }
 
-void flowWithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
-        std::vector<flowFragment> fragments, double minSizeFactor, std::array<double, 2> pixelSize){
+void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
+        std::vector<flowFragment> fragments, double minSizeFactor, std::array<double, 2> cellSize){
     
     typedef Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming > Grid;
     using GridView = Grid::LeafGridView;
     const GridView gridView = grid->leafGridView();
 
 
-    std::vector<fragmentBoundaries> fragmentsBoundaries= calcFragmentBoundaries(fragments, minSizeFactor);
-
-
+    std::vector<fragmentBoundaries> fragmentsBoundaries = calcFragmentBoundaries(fragments, minSizeFactor);
 
     double epsilonAngle = 1e-5; //TODO: till which angle?
    
@@ -159,7 +155,10 @@ void flowWithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, D
 
                     auto cornerI =corners[i];
 
-                    if (cornerI[0] < fB.minX-pixelSize[0] || cornerI[0] > fB.maxX+pixelSize[0] || cornerI[1] < fB.minY-pixelSize[1] || cornerI[1] > fB.maxY+pixelSize[1]){  continueFragment = true; break;} //element too far away
+                    if (cornerI[0] < fB.minX-cellSize[0] || cornerI[0] > fB.maxX+cellSize[0] || cornerI[1] < fB.minY-cellSize[1] || cornerI[1] > fB.maxY+cellSize[1]){  //element too far away
+                        continueFragment = true; 
+                        break;
+                        }
                     if(cornerI[0] < fB.minX) xOut--; //test if (corner of) trangle is outside of desired range
                     else if (cornerI[0] > fB.maxX)xOut++;
                     if(cornerI[1] < fB.minY) yOut--;
@@ -169,7 +168,7 @@ void flowWithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, D
                         if(cornerI[1] > fB.maxY) out1 = true;
                         else if (cornerI[1] < fB.minY) out2 = true;
                         else between = true;
-                        if (abs(cornerI[1]-fB.maxY)< 1e-5 || abs(cornerI[1]-fB.minY)< 1e-5){
+                        if (abs(cornerI[1]-fB.maxY)< 1e-5 || abs(cornerI[1]-fB.minY)< 1e-5){ //corner on border TODO: coeresind doesnet work --> refine?
                             grid->mark(-1, element); 
                             continueFragment = true;
                             break;
@@ -273,7 +272,7 @@ void flowWithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, D
                     double cross2_U = fB.b2[0] * vec2_U[1] - fB.b2[1] * vec2_U[0];
                     double cross2_D = fB.b2[0] * vec2_D[1] - fB.b2[1] * vec2_D[0];
     
-                    if((cross1_U > 0 && cross1_D < 0) ||(cross2_U > 0 && cross2_D < 0)){ continue;} //epsilon points on different sides of border
+                    if((cross1_U > 0 && cross1_D < 0) ||(cross2_U > 0 && cross2_D < 0)){ continue;} // points on different sides of border
                 }
             
                 change = true;
@@ -289,12 +288,111 @@ void flowWithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, D
 }
 
 
+std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, std::array<double, 2> cellSize, std::array<int, dim> gridSize){
+    std::vector<flowFragment> rivers;
+    int size = int(gridSize[0] * gridSize[1]);
+    std::vector<int> skip(size, 0);
+
+    std::cout << "Start finding flow fragments" << std::endl;
+    for (int i = 0; i< gridSize[0]; i++){ 
+        for (int j=0; j<gridSize[1]; j++){
+            if(skip[j*gridSize[0]+i]) continue;
+            if(accumulation_raster(i, j)>50){
+                std::cout << std::endl;
+                Dune::FieldVector<double, 2> start = {i, j};
+                Dune::FieldVector<double, 2> end = start;
+                
+                int dir = int(direction_raster(i, j));
+                int endI=  i;
+                int endJ = j;
+                int endDir = dir;
+                if(dir>128 || dir==0) continue;
+                double accStart = accumulation_raster(i, j);
+                double accEnd = accStart;
+                
+
+                while (endDir == dir){ //straight flow
+                    skip[endJ*gridSize[0]+endI]=1; //elements in middle of fragment don't need to be checked again
+                    //std::cout << "#";
+                    Dune::FieldVector<double, 2> currPoint = end;
+                    switch (dir)
+                    {
+                    case 1: end= currPoint+ Dune::FieldVector<double, 2>{1, 0};
+                        break;
+                    case 2: end= currPoint+ Dune::FieldVector<double, 2>{1,-1};
+                        break;
+                    case 4: end= currPoint+ Dune::FieldVector<double, 2>{0, -1};
+                        break;
+                    case 8: end= currPoint+ Dune::FieldVector<double, 2>{-1, -1};
+                        break;
+                    case 16: end= currPoint+ Dune::FieldVector<double, 2>{-1, 0};
+                        break;
+                    case 32: end= currPoint+ Dune::FieldVector<double, 2>{-1, 1};
+                        break;
+                    case 64: end= currPoint+ Dune::FieldVector<double, 2>{0, 1};
+                        break;
+                    case 128: end= currPoint+ Dune::FieldVector<double, 2>{1, 1};
+                        break;
+                    default:
+                        break;
+                
+                    }
+
+                    endI = round(end[0]); 
+                    endJ = round(end[1]);
+                    endDir = int(direction_raster(endI, endJ));
+                    accEnd = accumulation_raster(endI, endJ);
+                    std::cout << end <<  " " << endDir << " , " << dir<< std::endl;
+
+                    if(end[0] > gridSize[0] || end[1]>gridSize[1] || end[0] <0 || end[1]<0 || std::abs(accStart-accEnd)>200) { //end is outside of grid or accumulation changed too much --> cut fragment
+                        if(currPoint==start &&  std::abs(accStart-accEnd)>200) break; //flow over two cells --> fragments cannot be splitted
+                        end=currPoint; //undo changes
+                        endI = round(end[0]); 
+                        endJ = round(end[1]);
+                        skip[endJ*gridSize[0]+endI]=0; //end should not be skipped
+                        accEnd = accumulation_raster(endI, endJ); 
+                        break;
+                    }
+
+                }
+
+                skip[j*gridSize[0]+i] = 0; //start should not be skipped (skipped in first loop iteration)
+                double volume = (accStart+accEnd)/2;
+                double width = std::sqrt(volume/3000) * 3; //width:depht 3:1
+                double depht = std::sqrt(volume/3000);
+                width = std::min(0.6, width);
+                depht = std::min(0.4, depht);
+
+                start[0] = (start[0] + 1) * ((gridSize[0]-1.0)/gridSize[0]) * cellSize[0]; //cell centered date vs corner data (n cells on lenght n-1)
+                start[1] = (start[1] + 1) * ((gridSize[1]-1.0)/gridSize[1]) * cellSize[1];
+                end[0]   = (end[0]   + 1) * ((gridSize[0]-1.0)/gridSize[0]) * cellSize[0];
+                end[1]   = (end[1]   + 1) * ((gridSize[1]-1.0)/gridSize[1]) * cellSize[1];
+
+                flowFragment f = {start, end, width * cellSize[0]}; //TODO *cellSize[0]? or cellSize[1]
+                f.depht = depht * cellSize[0];
+                if(f.depht < 0.2) std::cout <<"shallow flow: " << f.depht << std::endl;
+
+                rivers.push_back(f);
+            }
+        }
+    }
+
+    std::cout << "\n Find fragments done. " << std::endl;
+
+    for (int i = rivers.size()-1; i>=0; i--){ //delete all fragments that can be skipped but were not skipped due to order
+        auto start = rivers[i].start;
+        int start_index_x = round(start[0]/(cellSize[0] * ((gridSize[0]-1.0)/gridSize[0])) -1);
+        int start_index_y = round(start[1]/(cellSize[1] * ((gridSize[1]-1.0)/gridSize[1])) -1);
+        if (skip[start_index_y*gridSize[0]+start_index_x]) rivers.erase(rivers.begin()+i);
+    }
+    return rivers;
+}
 
 
 std::vector<double> adjustFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, flowFragment f,
                                              std::vector<double> height){
-    double pixelSize = 90;
-    if(f.widthStart>=1) return adjustFlowHeight(grid, f.start, f.end, f.widthStart/pixelSize, f.widthEnd/pixelSize, f.depht, height);
+    double cellSize = 90;
+    if(f.widthStart>=1) return adjustFlowHeight(grid, f.start, f.end, f.widthStart/cellSize, f.widthEnd/cellSize, f.depht, height);
     else return adjustFlowHeight(grid, f.start, f.end, f.widthStart, f.widthEnd, f.depht, height);
 }
 

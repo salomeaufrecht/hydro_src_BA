@@ -186,8 +186,8 @@ int main(int argc, char **argv)
       double oy = image.originLat();
       const int dim = 2;
       std::array<int, dim> N;
-      N[0] = 50; //1800
-      N[1] = 50; //1200
+      N[0] = 300; //1800
+      N[1] = 300; //1200
       std::array<double, dim> H;
       H[0] = 10; 
       H[1] = 10; 
@@ -274,100 +274,8 @@ int main(int argc, char **argv)
 
 
 
-  std::vector<flowFragment> rivers;
-  int size = int(N[0]*N[1]);
-  std::vector<int> skip(size, 0);
+  std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
 
-  std::cout << "Start finding flow fragments" << std::endl;
-  for (int i = 0; i< N[0]; i++){ //TODO: start from 0 and check if end is outside
-    for (int j=0; j<N[1]; j++){
-      if(skip[j*N[0]+i]==-1) continue;
-      if(accumulation_raster(i, j)>50){
-
-        Dune::FieldVector<double, 2> start = {i, j};
-        Dune::FieldVector<double, 2> end = start;
-        
-        int dir = int(direction_raster(i, j));
-        int endI=  i;
-        int endJ = j;
-        int endDir = int(direction_raster(endI, endJ));
-        double accStart = accumulation_raster(i, j);
-        double accEnd = accStart;
-          
-
-        while (endDir == dir){ //straight flow
-          skip[endJ*N[0]+endI]=-1; //elements in middle of fragment don't need to be checked again
-
-          Dune::FieldVector<double, 2> currPoint = end;
-          switch (dir)
-          {
-          case 1: end= currPoint+ Dune::FieldVector<double, 2>{1, 0};
-            break;
-          case 2: end= currPoint+ Dune::FieldVector<double, 2>{1,-1};
-            break;
-          case 4: end= currPoint+ Dune::FieldVector<double, 2>{0, -1};
-            break;
-          case 8: end= currPoint+ Dune::FieldVector<double, 2>{-1, -1};
-            break;
-          case 16: end= currPoint+ Dune::FieldVector<double, 2>{-1, 0};
-            break;
-          case 32: end= currPoint+ Dune::FieldVector<double, 2>{-1, 1};
-            break;
-          case 64: end= currPoint+ Dune::FieldVector<double, 2>{0, 1};
-            break;
-          case 128: end= currPoint+ Dune::FieldVector<double, 2>{1, 1};
-            break;
-          default:
-            break;
-      
-          }
-
-          endI = round(end[0]); 
-          endJ = round(end[1]);
-          endDir = int(direction_raster(endI, endJ));
-          accEnd = accumulation_raster(endI, endJ);
-
-          if(end[0] > N[0] || end[1]>N[1] || end[0] <0 || end[1]<0 || std::abs(accStart-accEnd)>200) { //end is outside of grid or accumulation changed too much --> cut fragment
-            if(currPoint==start &&  std::abs(accStart-accEnd)>200) break; //flow over two cells --> fragments cannot be splitted
-            end=currPoint; //undo changes
-            endI = round(end[0]); 
-            endJ = round(end[1]);
-            skip[endJ*N[0]+endI]=0; //end should not be skipped
-            accEnd = accumulation_raster(endI, endJ); 
-            break;
-            }
-
-        }
-
-        skip[j*N[0]+i] = 0; //start should not be skipped (skipped in first loop iteration)
-        double volume = (accStart+accEnd)/2;
-        double width = std::sqrt(volume/3000) * 3; //width:depht 3:1
-        double depht = std::sqrt(volume/3000);
-        width = std::min(0.6, width);
-        depht = std::min(0.4, depht);
-
-        start[0] = (start[0] + 1) * ((N[0]-1.0)/N[0]) * H[0]; //cell centered date vs corner data (n cells on lenght n-1)
-        start[1] = (start[1] + 1) * ((N[1]-1.0)/N[1]) * H[1];
-        end[0]   = (end[0]   + 1) * ((N[0]-1.0)/N[0]) * H[0];
-        end[1]   = (end[1]   + 1) * ((N[1]-1.0)/N[1]) * H[1];
-
-        flowFragment f = {start, end, width*H[0]}; //TODO *H[0]? or H[1]
-        f.depht = depht * H[0];
-        if(f.depht < 0.2) std::cout <<"shallow flow: " << f.depht << std::endl;
-
-        rivers.push_back(f);
-      }
-    }
-  }
-
-  std::cout << "\n Find fragments done. " << std::endl;
-
-  for (int i = rivers.size()-1; i>=0; i--){ //delete all fragments that can be skipped but were not skipped due to order
-    auto start = rivers[i].start;
-    int start_index_x = round(start[0]/(H[0] * ((N[0]-1.0)/N[0])) -1);
-    int start_index_y = round(start[1]/(H[1] * ((N[1]-1.0)/N[1])) -1);
-    if (skip[start_index_y*N[0]+start_index_x]) rivers.erase(rivers.begin()+i);
-  }
 
         
     typedef Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming > Grid_;
@@ -389,7 +297,7 @@ int main(int argc, char **argv)
   std::cout << "gridview done" << std::endl;
 
   std::cout << "refine grid" << std::endl;
-  flowWithFragments(grid, rivers, 0.5, H); 
+  refineGridwithFragments(grid, rivers, 0.5, H); 
   std::cout << "refine grid done " << std::endl;
 
   std::vector<double> height(gridView.indexSet().size(2), 0);
@@ -398,7 +306,7 @@ int main(int argc, char **argv)
   std::cout << "river heigth done" << std::endl;
 
   std::cout << "set overall height" << std::endl;
-  height = overallHeigth(grid, height, elevation_raster, H);
+  height = overallHeight(grid, height, elevation_raster, H);
   std::cout << "overall heigth done" << std::endl;
 
 

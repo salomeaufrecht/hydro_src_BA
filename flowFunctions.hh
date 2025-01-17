@@ -52,8 +52,6 @@ struct fragmentBoundaries{
 };
 
 
-
-
 /**
  * @brief applies height for all river fragments by setting corresponding height value to -depht
  * 
@@ -67,14 +65,14 @@ std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim,
 
 
 /**
-     * @brief applies hight to all vertices in grid
+     * @brief applies height to all vertices in grid
      * @param grid alugrid representing an map
      * @param height vector with entry for each vertex where the height value will be added to and stored (changes of height values should be done in here (e.g. -1 for rivers))
      * @param map rasterdataset with height values for every cell in original data
-     * @param H size of each pixel
+     * @param cellSize size of each cell
      */
-std::vector<double> overallHeigth(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
-                                std::vector<double> height, RasterDataSet<float> map, std::array<double, 2> H);
+std::vector<double> overallHeight(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
+                                std::vector<double> height, RasterDataSet<float> map, std::array<double, 2> cellSize);
 
 
 /**
@@ -84,10 +82,22 @@ std::vector<double> overallHeigth(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune:
  * @param fragments vector with all flow fragments that should be inserted
  * @param minSizeFactor the minimal size to which a triangle should be refined relative to the width of each fragment 
  * (e.g. f.width=2, minSizeFactor=0.5 --> stop refinement when triangles are smaller than 1 )
- * @param pixelSize pixelSize
+ * @param cellSize pixelSize
  */
-void flowWithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
-        std::vector<flowFragment> fragments, double minSizeFactor = 0.4, std::array<double, 2> pixelSize = {1.0, 1.0});
+void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
+        std::vector<flowFragment> fragments, double minSizeFactor = 0.4, std::array<double, 2> cellSize = {1.0, 1.0});
+
+
+/**
+ * @brief detects rivers by looking at high accumulation values. Rivers are splitted in straight fragments
+ * 
+ * @param accumulation_raster raster with accumulation value for every cell
+ * @param direction_raster raster with direction value for every cell
+ * @param cellSize size of each cell in original grid
+ * @param gridSize size of grid (amount of cells)
+ * @return std::vector<flowFragment> 
+ */
+std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, std::array<double, 2> cellSize, std::array<int, dim> gridSize);
 
 std::vector<double> adjustFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, flowFragment f,
                                              std::vector<double> height);

@@ -61,15 +61,61 @@ std::vector<fragmentBoundaries> calcFragmentBoundaries(std::vector<flowFragment>
 }
 
 std::vector<double> overallHeight(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
-                                std::vector<double> height, RasterDataSet<float> map, std::array<double, 2> cellSize){
+                                std::vector<double> height, RasterDataSet<float> map, std::array<double, 2> cellSize, std::array<int, dim> gridSize){
 
     typedef Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming > Grid;
     using GridView = Grid::LeafGridView;
     const GridView gridView = grid->leafGridView();
 
+    Dune::FieldVector<double, dim> widthGrid = {cellSize[0] * (gridSize[0] - 1), cellSize[1] * (gridSize[1] - 1)};
+    Dune::FieldVector<double, dim> resCellSize = {widthGrid[0]/gridSize[0], widthGrid[1]/gridSize[1]};
+    std::cout << widthGrid << " --> " << resCellSize << std::endl;
+
     for(auto& v : vertices(gridView)){
         auto cornerI = v.geometry().corner(0);
-        double map_val =map(int(cornerI[0]/cellSize[0]), int(cornerI[1]/cellSize[1])); 
+        double x = (cornerI[0] - cellSize[0]/2)/(resCellSize[0]);
+        double y = (cornerI[1] - cellSize[1]/2)/(resCellSize[1]);
+        double map_val = 0;
+        std::cout << cornerI << std::endl;
+        std::cout << x << ", " << y << std::endl;
+        std::cout << int(x) << ", " << int(y)  << std::endl;
+        
+        int neighborX2 = -2;
+        int neighborX1=std::round(x);
+        if(abs(x-neighborX1)< 1e-3 ){
+            neighborX2 = int(x);
+            if(neighborX1 == neighborX2) neighborX2--;
+        } else neighborX1 = int(x);
+        if (neighborX1 > gridSize[0]-1) neighborX1 = gridSize[0]-1; //border
+        if(neighborX2 < 0 || neighborX1==neighborX2) neighborX2 = -2;
+
+        int neighborY2 = -2;
+        int neighborY1=std::round(y);
+        
+        if(abs(y-neighborY1)< 1e-3 ){
+            neighborY2 = int(y);
+            if(neighborY1 == neighborY2) neighborY2--;
+        } else neighborY1 = int(y);
+        if(neighborY2 < 0 || neighborY1==neighborY2) neighborY2 = -2;
+        if (neighborY1 > gridSize[1]-1) neighborY1 = gridSize[1]-1; //border
+        std::cout << neighborX1 << ", x2: " << neighborX2 << ", y1: " << neighborY1 << ", y2: " << neighborY2 << std::endl;
+
+
+        if(neighborX2==-2 && neighborY2 == -2){ // vertex in cell
+            map_val =map(neighborX1, neighborY1); 
+            std::cout << "in cell" <<std::endl;
+        } else if(neighborX2==-2 && neighborY2 != -2){
+            map_val = (map(neighborX1, neighborY1) + map(neighborX1, neighborY2))/2;
+            std::cout << "two y" <<std::endl;
+        } else if(neighborX2 != -2 && neighborY2 == -2){
+            map_val = (map(neighborX1, neighborY1) + map(neighborX2, neighborY1))/2;
+            std::cout << "two x" <<std::endl;
+        } else{
+            map_val = (map(neighborX1, neighborY1) + map(neighborX1, neighborY2)+ map(neighborX2, neighborY1) + map(neighborX2, neighborY2))/4;
+            std::cout << "two x two y" <<std::endl;
+        }
+        std::cout << map_val  << "\n" << std::endl;
+        //double map_val =map(int(x), int(y)); 
         if(map_val < -5000 || map_val > 10000) map_val = 0; //wrong values
 
         height[gridView.indexSet().index(v)] += map_val; //add height value bc rivers are stored in height as -depht --> results in height-depht as value
@@ -169,7 +215,7 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simp
                         else if (cornerI[1] < fB.minY) out2 = true;
                         else between = true;
                         if (abs(cornerI[1]-fB.maxY)< 1e-5 || abs(cornerI[1]-fB.minY)< 1e-5){ //corner on border TODO: coeresind doesnet work --> refine?
-                            grid->mark(-1, element); 
+                            grid->mark(1, element); //coerse
                             continueFragment = true;
                             break;
                         }
@@ -181,7 +227,7 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simp
                         else if (cornerI[0] < fB.minX) out1 = true;
                         else between = true;
                         if (abs(cornerI[0]-fB.maxX)< 1e-5 || abs(cornerI[0]-fB.minX)< 1e-5){
-                            grid->mark(-1, element); 
+                            grid->mark(1, element); //coerse
                             continueFragment = true;
                             break;
                         }
@@ -194,7 +240,7 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simp
                     double cross2 = fB.b2[0] * vec2[1] - fB.b2[1] * vec2[0];
                 
                     if (std::abs(cross1) < 1e-5 ||std::abs( cross2) < 1e-5){ //border on edge of triangle
-                        grid->mark(-1, element); 
+                        grid->mark(1, element); //coerse
                         continueFragment = true;
                         break;
                     }
@@ -288,7 +334,8 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simp
 }
 
 
-std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, std::array<double, 2> cellSize, std::array<int, dim> gridSize){
+std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, 
+                            std::array<double, 2> cellSize, std::array<int, dim> gridSize){
     std::vector<flowFragment> rivers;
     int size = int(gridSize[0] * gridSize[1]);
     std::vector<int> skip(size, 0);
@@ -298,7 +345,6 @@ std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_rast
         for (int j=0; j<gridSize[1]; j++){
             if(skip[j*gridSize[0]+i]) continue;
             if(accumulation_raster(i, j)>50){
-                std::cout << std::endl;
                 Dune::FieldVector<double, 2> start = {i, j};
                 Dune::FieldVector<double, 2> end = start;
                 
@@ -313,7 +359,6 @@ std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_rast
 
                 while (endDir == dir){ //straight flow
                     skip[endJ*gridSize[0]+endI]=1; //elements in middle of fragment don't need to be checked again
-                    //std::cout << "#";
                     Dune::FieldVector<double, 2> currPoint = end;
                     switch (dir)
                     {
@@ -342,7 +387,6 @@ std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_rast
                     endJ = round(end[1]);
                     endDir = int(direction_raster(endI, endJ));
                     accEnd = accumulation_raster(endI, endJ);
-                    std::cout << end <<  " " << endDir << " , " << dir<< std::endl;
 
                     if(end[0] > gridSize[0] || end[1]>gridSize[1] || end[0] <0 || end[1]<0 || std::abs(accStart-accEnd)>200) { //end is outside of grid or accumulation changed too much --> cut fragment
                         if(currPoint==start &&  std::abs(accStart-accEnd)>200) break; //flow over two cells --> fragments cannot be splitted
@@ -377,14 +421,15 @@ std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_rast
         }
     }
 
-    std::cout << "\n Find fragments done. " << std::endl;
-
     for (int i = rivers.size()-1; i>=0; i--){ //delete all fragments that can be skipped but were not skipped due to order
         auto start = rivers[i].start;
         int start_index_x = round(start[0]/(cellSize[0] * ((gridSize[0]-1.0)/gridSize[0])) -1);
         int start_index_y = round(start[1]/(cellSize[1] * ((gridSize[1]-1.0)/gridSize[1])) -1);
         if (skip[start_index_y*gridSize[0]+start_index_x]) rivers.erase(rivers.begin()+i);
     }
+
+    std::cout << "\n Find fragments done. " << std::endl;
+
     return rivers;
 }
 

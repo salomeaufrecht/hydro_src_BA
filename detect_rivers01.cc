@@ -186,11 +186,11 @@ int main(int argc, char **argv)
       double oy = image.originLat();
       const int dim = 2;
       std::array<int, dim> N;
-      N[0] = 300; //1800
-      N[1] = 300; //1200
+      N[0] = 16; //1800
+      N[1] = 16; //1200
       std::array<double, dim> H;
-      H[0] = 10; 
-      H[1] = 10; 
+      H[0] = 6; 
+      H[1] = 6; 
       Dune::FieldVector<double, dim> L;
       L[0] = N[0] * H[0];
       L[1] = N[1] * H[1];
@@ -201,14 +201,14 @@ int main(int argc, char **argv)
       auto gridp = std::make_shared<Grid>(L, N, std::bitset<dim>(0ULL), 1);
 
       // now make raster canvas in cell-centered mode
-      auto elevation_raster = RasterDataSet<float>(99.85 + 0.5 * dx, 8.35 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0
+      auto elevation_raster = RasterDataSet<float>(99.411 + 0.5 * dx, 8.1 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
 
       elevation_raster.paste(image);
       //elevation.paste(image2);
-      auto accumulation_raster = RasterDataSet<float>(99.85 + 0.5 * dx, 8.35 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      auto accumulation_raster = RasterDataSet<float>(99.411 + 0.5 * dx, 8.1 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
       accumulation_raster.paste(aimage);
       //accumulation_raster.paste(aimage2);
-      auto direction_raster = RasterDataSet<unsigned char>(99.85 + 0.5 * dx, 8.35 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      auto direction_raster = RasterDataSet<unsigned char>(99.411 + 0.5 * dx, 8.1 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
       direction_raster.paste(dimage);
       //direction_raster.paste(dimage2);
 
@@ -306,7 +306,7 @@ int main(int argc, char **argv)
   std::cout << "river heigth done" << std::endl;
 
   std::cout << "set overall height" << std::endl;
-  height = overallHeight(grid, height, elevation_raster, H);
+  height = overallHeight(grid, height, elevation_raster, H, N);
   std::cout << "overall heigth done" << std::endl;
 
 

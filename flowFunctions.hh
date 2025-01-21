@@ -61,7 +61,7 @@ struct fragmentBoundaries{
  * @return std::vector<double> height
  */
 std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
-        std::vector<flowFragment> fragments, std::vector<double> height, RasterDataSet<float> map, std::array<double, 2> cellSize, std::array<int, dim> gridSize);
+        std::vector<flowFragment> fragments, std::vector<double> height, RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, std::array<int, dim> gridSize);
 
 
 /**
@@ -72,7 +72,7 @@ std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim,
      * @param cellSize size of each cell
      */
 std::vector<double> overallHeight(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
-                                std::vector<double> height, RasterDataSet<float> map, std::array<double, 2> cellSize, std::array<int, dim> gridSize);
+                                std::vector<double> height, RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, std::array<int, dim> gridSize);
 
 
 /**

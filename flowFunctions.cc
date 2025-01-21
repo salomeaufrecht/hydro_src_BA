@@ -13,7 +13,13 @@ double squaredDistance(Dune::FieldVector<double, dim> p1, Dune::FieldVector<doub
     return diff[0]*diff[0] + diff[1]*diff[1];
 }
 
-
+/**
+ * @brief calculates bounadries of flow fragments (bordern on both sides)
+ * 
+ * @param fragments 
+ * @param minSizeFactor 
+ * @return std::vector<fragmentBoundaries> 
+ */
 std::vector<fragmentBoundaries> calcFragmentBoundaries(std::vector<flowFragment> fragments, double minSizeFactor=0.4){
     
     std::vector<fragmentBoundaries> fragmentsBoundaries;
@@ -60,6 +66,39 @@ std::vector<fragmentBoundaries> calcFragmentBoundaries(std::vector<flowFragment>
     return fragmentsBoundaries;
 }
 
+/**
+ * @brief for a given point (x,y) in grid coordinates checks if this point is in border of cells and if yes retuns the other cell(s) of this boder
+ * 
+ * @param x x coordinate in grid coordinates
+ * @param y y coordinate in grid coordinates
+ * @param gridSize #cells in x/y direction
+ * @return std::vector<int> neighborX1, neighborX2, neighborY1, neighborY2
+ */
+std::vector<int> calcNeighbors(double x, double y, std::array<int, dim> gridSize){
+
+    int neighborX2 = -2;
+    int neighborX1=std::round(x);
+    if(abs(x-neighborX1)< 1e-8 ){ //vertex on border between cells in x direction
+        neighborX2 = int(x);
+        if(neighborX1 == neighborX2) neighborX2--;
+    } else neighborX1 = int(x); //vertex in cell
+    if (neighborX1 > gridSize[0]-1) neighborX1 = gridSize[0]-1; //vertex on outside border
+    if(neighborX2 < 0 || neighborX1==neighborX2) neighborX2 = -2;
+
+    int neighborY2 = -2;
+    int neighborY1=std::round(y);
+    
+    if(abs(y-neighborY1)< 1e-8 ){ //vertex on border between cells in x direction
+        neighborY2 = int(y);
+        if(neighborY1 == neighborY2) neighborY2--;
+    } else neighborY1 = int(y); //vertex in cell
+    if(neighborY2 < 0 || neighborY1==neighborY2) neighborY2 = -2;//vertex on outside border
+    if (neighborY1 > gridSize[1]-1) neighborY1 = gridSize[1]-1; 
+
+
+    return {neighborX1, neighborX2, neighborY1, neighborY2};
+}
+
 std::vector<double> overallHeight(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
                                 std::vector<double> height, RasterDataSet<float> map, std::array<double, 2> cellSize, std::array<int, dim> gridSize){
 
@@ -67,58 +106,38 @@ std::vector<double> overallHeight(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune:
     using GridView = Grid::LeafGridView;
     const GridView gridView = grid->leafGridView();
 
+
     Dune::FieldVector<double, dim> widthGrid = {cellSize[0] * (gridSize[0] - 1), cellSize[1] * (gridSize[1] - 1)};
     Dune::FieldVector<double, dim> resCellSize = {widthGrid[0]/gridSize[0], widthGrid[1]/gridSize[1]};
-    std::cout << widthGrid << " --> " << resCellSize << std::endl;
 
     for(auto& v : vertices(gridView)){
+         double map_val = 0;
         auto cornerI = v.geometry().corner(0);
-        double x = (cornerI[0] - cellSize[0]/2)/(resCellSize[0]);
+        double x = (cornerI[0] - cellSize[0]/2)/(resCellSize[0]); //conversion to grid data
         double y = (cornerI[1] - cellSize[1]/2)/(resCellSize[1]);
-        double map_val = 0;
-        std::cout << cornerI << std::endl;
-        std::cout << x << ", " << y << std::endl;
-        std::cout << int(x) << ", " << int(y)  << std::endl;
-        
-        int neighborX2 = -2;
-        int neighborX1=std::round(x);
-        if(abs(x-neighborX1)< 1e-3 ){
-            neighborX2 = int(x);
-            if(neighborX1 == neighborX2) neighborX2--;
-        } else neighborX1 = int(x);
-        if (neighborX1 > gridSize[0]-1) neighborX1 = gridSize[0]-1; //border
-        if(neighborX2 < 0 || neighborX1==neighborX2) neighborX2 = -2;
 
-        int neighborY2 = -2;
-        int neighborY1=std::round(y);
+        std::vector<int> neighbors= calcNeighbors(x, y, gridSize);
+        int neighborX1 = neighbors[0];
+        int neighborX2 = neighbors[1];
+        int neighborY1 = neighbors[2];
+        int neighborY2 = neighbors[3];
         
-        if(abs(y-neighborY1)< 1e-3 ){
-            neighborY2 = int(y);
-            if(neighborY1 == neighborY2) neighborY2--;
-        } else neighborY1 = int(y);
-        if(neighborY2 < 0 || neighborY1==neighborY2) neighborY2 = -2;
-        if (neighborY1 > gridSize[1]-1) neighborY1 = gridSize[1]-1; //border
-        std::cout << neighborX1 << ", x2: " << neighborX2 << ", y1: " << neighborY1 << ", y2: " << neighborY2 << std::endl;
-
 
         if(neighborX2==-2 && neighborY2 == -2){ // vertex in cell
             map_val =map(neighborX1, neighborY1); 
-            std::cout << "in cell" <<std::endl;
-        } else if(neighborX2==-2 && neighborY2 != -2){
+        } else if(neighborX2==-2 && neighborY2 != -2){ //vertex between two cells in y direction
             map_val = (map(neighborX1, neighborY1) + map(neighborX1, neighborY2))/2;
-            std::cout << "two y" <<std::endl;
-        } else if(neighborX2 != -2 && neighborY2 == -2){
+        } else if(neighborX2 != -2 && neighborY2 == -2){ //vertex between two cells in x direction
             map_val = (map(neighborX1, neighborY1) + map(neighborX2, neighborY1))/2;
-            std::cout << "two x" <<std::endl;
-        } else{
+        } else{ //vertex between four cells
             map_val = (map(neighborX1, neighborY1) + map(neighborX1, neighborY2)+ map(neighborX2, neighborY1) + map(neighborX2, neighborY2))/4;
-            std::cout << "two x two y" <<std::endl;
         }
-        std::cout << map_val  << "\n" << std::endl;
-        //double map_val =map(int(x), int(y)); 
+
+
+
         if(map_val < -5000 || map_val > 10000) map_val = 0; //wrong values
 
-        height[gridView.indexSet().index(v)] += map_val; //add height value bc rivers are stored in height as -depht --> results in height-depht as value
+        height[gridView.indexSet().index(v)] = map_val; //add height value bc rivers are stored in height as -depht --> results in height-depht as value
     }
     return height;
 }
@@ -126,18 +145,23 @@ std::vector<double> overallHeight(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune:
 
 
 std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
-        std::vector<flowFragment> fragments, std::vector<double> height){
+        std::vector<flowFragment> fragments, std::vector<double> height, RasterDataSet<float> map, std::array<double, 2> cellSize, std::array<int, dim> gridSize){
 
     typedef Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming > Grid;
     using GridView = Grid::LeafGridView;
     const GridView gridView = grid->leafGridView();
 
+    std::vector<double> originalHeight = height;
+
+    Dune::FieldVector<double, dim> widthGrid = {cellSize[0] * (gridSize[0] - 1), cellSize[1] * (gridSize[1] - 1)};
+    Dune::FieldVector<double, dim> resCellSize = {widthGrid[0]/gridSize[0], widthGrid[1]/gridSize[1]};
 
     std::vector<fragmentBoundaries> fragmentsBoundaries = calcFragmentBoundaries(fragments);
 
     
     for(auto& v : vertices(gridView)){ //check for each vertex if its part of a fragment
         auto cornerI = v.geometry().corner(0); //avoid recomputation
+        std::cout << originalHeight[gridView.indexSet().index(v)] <<std::endl;
  
         for (const auto& fB : fragmentsBoundaries){
 
@@ -153,10 +177,78 @@ std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim,
                 double cross1 = fB.b1[0] * vec1[1] - fB.b1[1] * vec1[0];
                 double cross2 = fB.b2[0] * vec2[1] - fB.b2[1] * vec2[0];
                 
-                if(cross1 > 0) continue;
-                else if(cross2 < 0) continue;
+                if(cross1 > 0 || cross2 < 0) continue;
             }
-            height[gridView.indexSet().index(v)] = -fB.depht;
+            if(fB.direction == 3){ //diagonal //following not essential to work but smoothens results
+                
+                double x = (cornerI[0] - cellSize[0]/2)/(resCellSize[0]); //conversion to grid data
+                double y = (cornerI[1] - cellSize[1]/2)/(resCellSize[1]);
+
+                std::vector<int> neighbors= calcNeighbors(x, y, gridSize);
+                int neighborX1 = neighbors[0];
+                int neighborX2 = neighbors[1];
+                int neighborY1 = neighbors[2];
+                int neighborY2 = neighbors[3];
+
+
+                if(neighborX2==-2 && neighborY2 == -2){ // vertex in cell
+                    
+                    if(std::abs(fB.b1[0]-fB.b1[1])<1e-8){ //flow from bottom left to top right or vice versa
+                        Dune::FieldVector<double, dim> bottomLeftCellCorner = {neighborX1 * resCellSize[0] + cellSize[0]/2, neighborY1 * resCellSize[1] + cellSize[1]/2};
+                        Dune::FieldVector<double, dim> vec1 = bottomLeftCellCorner - fB.start1;
+                        Dune::FieldVector<double, dim> vec2 = bottomLeftCellCorner - fB.start2;
+                        double cross1 = fB.b1[0] * vec1[1] - fB.b1[1] * vec1[0];
+                        double cross2 = fB.b2[0] * vec2[1] - fB.b2[1] * vec2[0];
+                        
+                        if(cross1 > 0 || cross2 < 0){ //flow through corner of cell (bottom left corner not in flow)
+                            double x_inCell = x - neighborX1;
+                            double y_inCell = y - neighborY1;
+                            if(x_inCell < y_inCell){ //flow through top left corner
+                                height[gridView.indexSet().index(v)] = std::min(double(originalHeight[gridView.indexSet().index(v)]), 
+                                                                                double((map(neighborX1-1, neighborY1)+map(neighborX1, neighborY1 + 1))/2)) - fB.depht;
+                                continue;
+                            } else { //flow through bottom right corner
+                                height[gridView.indexSet().index(v)] = std::min(double(originalHeight[gridView.indexSet().index(v)]), 
+                                                                                double((map(neighborX1 + 1, neighborY1)+map(neighborX1, neighborY1 - 1))/2)) - fB.depht;
+                                continue;
+                            }
+                        }
+                    }
+                    else{//flow from bottom right to top left or vice versa
+                        Dune::FieldVector<double, dim> bottomRightCellCorner = {(neighborX1 + 1) * resCellSize[0] + cellSize[0]/2, neighborY1 * resCellSize[1] + cellSize[1]/2};
+                        Dune::FieldVector<double, dim> vec1 = bottomRightCellCorner - fB.start1;
+                        Dune::FieldVector<double, dim> vec2 = bottomRightCellCorner - fB.start2;
+                        double cross1 = fB.b1[0] * vec1[1] - fB.b1[1] * vec1[0];
+                        double cross2 = fB.b2[0] * vec2[1] - fB.b2[1] * vec2[0];
+                        
+                        if(cross1 > 0 || cross2 < 0){ //flow through corner of cell (bottom right corner not in flow)
+                            double x_inCell = x - neighborX1;
+                            double y_inCell = y - neighborY1;
+                            if(x_inCell + y_inCell > 1){ //flow through top right corner
+                                height[gridView.indexSet().index(v)] = std::min(double(originalHeight[gridView.indexSet().index(v)]), 
+                                                                                (double(map(neighborX1 + 1, neighborY1) + map(neighborX1, neighborY1 + 1))/2)) - fB.depht;
+                                continue;
+                            } else { //flow through bottom left corner
+                                height[gridView.indexSet().index(v)] = std::min(double(originalHeight[gridView.indexSet().index(v)]), 
+                                                                                (double(map(neighborX1 - 1, neighborY1) + map(neighborX1, neighborY1 - 1))/2)) - fB.depht;
+                                continue;
+                            }
+                        }
+                    }         
+                } else if(neighborX2==-2 && neighborY2 != -2){ //vertex between two cells in y direction
+                    height[gridView.indexSet().index(v)] = std::min(map(neighborX1, neighborY1),map(neighborX1, neighborY2)) - fB.depht;
+                    continue;
+                } else if(neighborX2 != -2 && neighborY2 == -2){ //vertex between two cells in x direction
+                    height[gridView.indexSet().index(v)] = std::min(map(neighborX1, neighborY1), map(neighborX2, neighborY1)) - fB.depht;
+                    continue;
+                } else{ //vertex between four cells
+                    height[gridView.indexSet().index(v)] = std::min((map(neighborX1, neighborY1) + map(neighborX2, neighborY2))/2, 
+                        	                                                (map(neighborX2, neighborY1) + map(neighborX1, neighborY2))/2) - fB.depht;
+                    continue;
+                }
+            }   
+            
+            else height[gridView.indexSet().index(v)] = std::min(originalHeight[gridView.indexSet().index(v)] - fB.depht, height[gridView.indexSet().index(v)]);
         }
     }
     return height;
@@ -432,6 +524,7 @@ std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_rast
 
     return rivers;
 }
+
 
 
 std::vector<double> adjustFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, flowFragment f,

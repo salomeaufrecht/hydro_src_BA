@@ -175,10 +175,8 @@ int main(int argc, char **argv)
       GeoTIFFImage<GUInt32> aimage("N00E090_acc.tif", "", 1, 2);
       GeoTIFFImage<GByte> dimage("n00e090_dir.tif", "", 1, 2);
       // second tile
-      //GeoTIFFImage<GInt16> image2("n00e100_con.tif", "", 1, 2);
-      //GeoTIFFImage<GUInt32> aimage2("N00E100_acc.tif", "", 1, 2);
-      //GeoTIFFImage<GByte> dimage2("n00e100_dir.tif", "", 1, 2);
-
+   
+      //color for rivers: 1-550
       // create YaspGrid 
       double dx = std::abs(image.dLong());
       double dy = std::abs(image.dLat());
@@ -186,11 +184,11 @@ int main(int argc, char **argv)
       double oy = image.originLat();
       const int dim = 2;
       std::array<int, dim> N;
-      N[0] = 16; //1800
-      N[1] = 16; //1200
+      N[0] = 8; //1800
+      N[1] = 8; //1200
       std::array<double, dim> H;
-      H[0] = 6; 
-      H[1] = 6; 
+      H[0] = 1; 
+      H[1] = 1; 
       Dune::FieldVector<double, dim> L;
       L[0] = N[0] * H[0];
       L[1] = N[1] * H[1];
@@ -201,14 +199,14 @@ int main(int argc, char **argv)
       auto gridp = std::make_shared<Grid>(L, N, std::bitset<dim>(0ULL), 1);
 
       // now make raster canvas in cell-centered mode
-      auto elevation_raster = RasterDataSet<float>(99.411 + 0.5 * dx, 8.1 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
+      auto elevation_raster = RasterDataSet<float>(99.4 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
 
       elevation_raster.paste(image);
       //elevation.paste(image2);
-      auto accumulation_raster = RasterDataSet<float>(99.411 + 0.5 * dx, 8.1 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      auto accumulation_raster = RasterDataSet<float>(99.4 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
       accumulation_raster.paste(aimage);
       //accumulation_raster.paste(aimage2);
-      auto direction_raster = RasterDataSet<unsigned char>(99.411 + 0.5 * dx, 8.1 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      auto direction_raster = RasterDataSet<unsigned char>(99.4 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
       direction_raster.paste(dimage);
       //direction_raster.paste(dimage2);
 
@@ -277,6 +275,9 @@ int main(int argc, char **argv)
   std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
 
 
+  for(auto river : rivers){
+    std::cout << river.start << " - " << river.end << ": width: " << river.widthStart << "; depht: " << river.depht << std::endl;
+  }
         
     typedef Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming > Grid_;
     using GridView = Grid_::LeafGridView;
@@ -302,25 +303,15 @@ int main(int argc, char **argv)
 
   std::vector<double> height(gridView.indexSet().size(2), 0);
   
+
   std::cout << "set overall height" << std::endl;
   height = overallHeight(grid, height, elevation_raster, H, N);
   std::cout << "overall heigth done" << std::endl;
 
-  std::cout << "set river height grid" << std::endl;
+std::cout << "set river height grid" << std::endl;
   height= applyFlowHeightFragments(grid, rivers, height, elevation_raster, H, N);
   std::cout << "river heigth done" << std::endl;
-
-
-
-    //for(auto& f : fragments){
-    //  int endI=round(f.start[0]/H[0]);
-    //  int endJ = round(f.start[1]/H[1]);
-    //  if(skip[endJ*N[0]+endI]==-1) continue;
-    //  //std::cout << "height" << std::endl;
-    //  height = adjustFlowHeightFragments(grid, f, height); 
-    //}
-     
-     //Write grid to file
+  
 
     int subsampling = 2;
     //Dune::SubsamplingVTKWriter<GridView> vtkWriter(gridView, Dune::refinementIntervals(subsampling));

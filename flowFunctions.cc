@@ -1,12 +1,75 @@
 #include "flowFunctions.hh"
 
+/**
+ * @brief Calculates the normal vector of a given 2D vector.
+ * 
+ * The function computes a unit vector normal to the input vector. 
+ * The normal vector is rotated 90 degrees counter-clockwise.
+ * 
+ * @tparam dim The dimension of the vector (assumed to be 2).
+ * @param vector The input vector for which the normal is calculated.
+ * @return Dune::FieldVector<double, dim> The normalized normal vector.
+ */
+Dune::FieldVector<double, dim> calculateNormal(const Dune::FieldVector<double, dim>& vector) {
+    double lenght = std::sqrt(vector[0] * vector[0] + vector[1] * vector[1]);
+    return { -vector[1] / lenght, vector[0] / lenght };
+}
 
 /**
- * @brief calculated the squared distance of two points
+ * @brief Calculates the neighbors of a coordinate in a given grid.
  * 
- * @param p1 
- * @param p2 
- * @return double 
+ * The function determines the indices of the nearest grid neighbors (in reference grid) for a given 
+ * coordinate if this coordinate lies on the border between two grid cells in this coordinate direction. It ensures that the indices are within the bounds of the grid.
+ * 
+ * @param coord The coordinate whose neighbors are calculated (in reference coordinates).
+ * @param gridSize The size of the grid.
+ * @return std::pair<int, int> The indices of the two neighboring cells. 
+ */
+std::pair<int, int> calculateNeighborsOneDirection(double coord, int gridSize) {
+    int neighbor1 = std::round(coord);
+    int neighbor2 = -2;
+
+    if (std::abs(coord - neighbor1) < 1e-8) {
+        neighbor2 = int(coord);
+        if (neighbor1 == neighbor2) neighbor2--;
+    } else {
+        neighbor1 = int(coord);
+    }
+
+    if (neighbor1 > gridSize - 1) neighbor1 = gridSize - 1;
+    if (neighbor2 < 0 ) neighbor2 = -2;
+
+    return {neighbor1, neighbor2};
+}
+
+/**
+ * @brief Determines neighbors of a grid cell for a given point in reference coordinates.
+ * 
+ * The function identifies neighboring grid cells for a point in the reference grid system.
+ * It returns the indices of the adjacent cells in both x and y directions if the point lies on border between grids. Else neighbor x/y 2 will be -2.
+ * 
+ * @param point The point in reference grid coordinates.
+ * @param gridSize The dimensions of the grid (number of cells in x and y directions).
+ * @return std::vector<int> The indices of the neighboring cells in x and y directions.
+ */
+
+std::vector<int> calcNeighbors(Dune::FieldVector<double, 2> point, std::array<int, dim> gridSize){
+
+    auto [neighborX1, neighborX2] = calculateNeighborsOneDirection(point[0], gridSize[0]);
+    auto [neighborY1, neighborY2] = calculateNeighborsOneDirection(point[1], gridSize[1]);
+
+    return {neighborX1, neighborX2, neighborY1, neighborY2};
+}
+/**
+ * @brief Calculates the squared distance between two points.
+ * 
+ * The function computes the Euclidean squared distance between two points 
+ * in a given dimensional space.
+ * 
+ * @tparam dim The dimension of the points.
+ * @param p1 The first point.
+ * @param p2 The second point.
+ * @return double The squared distance between the two points.
  */
 double squaredDistance(Dune::FieldVector<double, dim> p1, Dune::FieldVector<double, dim> p2){
     Dune::FieldVector<double, dim> diff = (p1 - p2);
@@ -14,11 +77,50 @@ double squaredDistance(Dune::FieldVector<double, dim> p1, Dune::FieldVector<doub
 }
 
 /**
- * @brief calculates bounadries of flow fragments (bordern on both sides)
+ * @brief Converts reference coordinates to global coordinates.
  * 
- * @param fragments 
- * @param minSizeFactor 
- * @return std::vector<fragmentBoundaries> 
+ * The function maps reference grid coordinates to global coordinates using 
+ * specified scaling factors and offsets.
+ * 
+ * @param referenceCoord The reference grid coordinates.
+ * @param quotient Scaling factors for each dimension.
+ * @param half Offsets for each dimension.
+ * @return Dune::FieldVector<double, 2> The corresponding global coordinates.
+ */
+Dune::FieldVector<double, 2> convertToGlobalCoordinates(const Dune::FieldVector<double, 2> referenceCoord, const std::array<double, 2>& quotient, const std::array<double, 2>& half) {
+    Dune::FieldVector<double, 2> globalCoord;
+    globalCoord[0] = referenceCoord[0] * quotient[0] + half[0];
+    globalCoord[1] = referenceCoord[1] * quotient[1] + half[1];
+    return globalCoord;
+}
+
+/**
+ * @brief Converts global coordinates to reference coordinates.
+ * 
+ * The function maps global coordinates to the reference coordinate system.
+ * 
+ * @param globalCoord The global coordinates.
+ * @param cellSize The size of the grid cell in each dimension.
+ * @param resCellSize The actual cell size.
+ * @return Dune::FieldVector<double, 2> The corresponding reference coordinates.
+ */
+Dune::FieldVector<double, 2> convertToReferenceCoordinates(const Dune::FieldVector<double, 2> globalCoord, std::array<double, 2>& cellSize, 
+                                                            Dune::FieldVector<double, dim>& resCellSize) {
+    Dune::FieldVector<double, 2> referenceCoord;
+    referenceCoord[0] = (globalCoord[0] - cellSize[0]/2)/(resCellSize[0]);
+    referenceCoord[1] = (globalCoord[1] - cellSize[1]/2)/(resCellSize[1]);
+    return referenceCoord;
+}
+
+/**
+ * @brief Calculates boundaries for flow fragments.
+ * 
+ * The function computes boundary information for each flow fragment, including 
+ * axis-aligned bounding boxes, directional properties, and adjusted start/end points.
+ * 
+ * @param fragments A vector of flow fragments to process.
+ * @param minSizeFactor A scaling factor for the minimum boundary size (default is 0.4).
+ * @return std::vector<fragmentBoundaries> The computed boundaries for all fragments.
  */
 std::vector<fragmentBoundaries> calcFragmentBoundaries(std::vector<flowFragment> fragments, double minSizeFactor=0.4){
     
@@ -32,8 +134,7 @@ std::vector<fragmentBoundaries> calcFragmentBoundaries(std::vector<flowFragment>
         }
 
         Dune::FieldVector<double, dim> flowVector = f.end - f.start;
-        Dune::FieldVector<double, dim> normal_flowVector = { -flowVector[1]/ std::sqrt(flowVector[0]*flowVector[0] + flowVector[1]*flowVector[1]), 
-                                                        flowVector[0]/ std::sqrt(flowVector[0]*flowVector[0] + flowVector[1]*flowVector[1])} ;
+        Dune::FieldVector<double, dim> normal_flowVector = calculateNormal(flowVector);
 
         if (f.widthEnd < 0) f.widthEnd = f.widthStart;
 
@@ -57,6 +158,7 @@ std::vector<fragmentBoundaries> calcFragmentBoundaries(std::vector<flowFragment>
         double minY = std::min({start1[1], start2[1], end1[1], end2[1]});
         double maxY = std::max({start1[1], start2[1], end1[1], end2[1]});
         
+        
         double minSize =  minSizeFactor*std::min(f.widthStart, f.widthEnd);
 
         fragmentBoundaries fB = fragmentBoundaries{start1, start2, b1, b2, minX, maxX, minY, maxY, direction, minSize};
@@ -67,38 +169,61 @@ std::vector<fragmentBoundaries> calcFragmentBoundaries(std::vector<flowFragment>
     return fragmentsBoundaries;
 }
 
+
+
 /**
- * @brief for a given point (x,y) in reference grid coordinates checks if this point is in border of cells and if yes retuns the other cell(s) of this boder
+ * @brief Interpolates the elevation at a given point in the grid.
  * 
- * @param x x coordinate in reference grid coordinates
- * @param y y coordinate in reference grid coordinates
- * @param gridSize #cells in x/y direction
- * @return std::vector<int> neighborX1, neighborX2, neighborY1, neighborY2
+ * The function uses bilinear interpolation to estimate the elevation value 
+ * at a specified point if this point is located between cells.
+ * 
+ * @param point The point in reference grid coordinates.
+ * @param gridSize The size of the grid in x and y directions.
+ * @param elevation_raster The raster dataset containing elevation values.
+ * @return double The interpolated elevation at the specified point.
  */
-std::vector<int> calcNeighbors(double x, double y, std::array<int, dim> gridSize){
+double interpolateElevation(Dune::FieldVector<double, 2> point, const std::array<int, dim>& gridSize, const RasterDataSet<float>& elevation_raster) {
+    auto [neighborX1, neighborX2] = calculateNeighborsOneDirection(point[0], gridSize[0]);
+    auto [neighborY1, neighborY2] = calculateNeighborsOneDirection(point[1], gridSize[1]);
 
-    int neighborX2 = -2;
-    int neighborX1=std::round(x);
-    if(abs(x-neighborX1)< 1e-8 ){ //vertex on border between cells in x direction
-        neighborX2 = int(x);
-        if(neighborX1 == neighborX2) neighborX2--;
-    } else neighborX1 = int(x); //vertex in cell
-    if (neighborX1 > gridSize[0]-1) neighborX1 = gridSize[0]-1; //vertex on outside border
-    if(neighborX2 < 0 || neighborX1==neighborX2) neighborX2 = -2;
-
-    int neighborY2 = -2;
-    int neighborY1=std::round(y);
-    
-    if(abs(y-neighborY1)< 1e-8 ){ //vertex on border between cells in x direction
-        neighborY2 = int(y);
-        if(neighborY1 == neighborY2) neighborY2--;
-    } else neighborY1 = int(y); //vertex in cell
-    if(neighborY2 < 0 || neighborY1==neighborY2) neighborY2 = -2;//vertex on outside border
-    if (neighborY1 > gridSize[1]-1) neighborY1 = gridSize[1]-1; 
-
-
-    return {neighborX1, neighborX2, neighborY1, neighborY2};
+    if (neighborX2 == -2 && neighborY2 == -2) {
+        return elevation_raster(neighborX1, neighborY1);
+    } else if (neighborX2 == -2) {
+        return (elevation_raster(neighborX1, neighborY1) + elevation_raster(neighborX1, neighborY2)) / 2;
+    } else if (neighborY2 == -2) {
+        return (elevation_raster(neighborX1, neighborY1) + elevation_raster(neighborX2, neighborY1)) / 2;
+    } else {
+        return (elevation_raster(neighborX1, neighborY1) + elevation_raster(neighborX1, neighborY2) +
+                elevation_raster(neighborX2, neighborY1) + elevation_raster(neighborX2, neighborY2)) / 4;
+    }
 }
+
+/**
+ * @brief Determines whether a point lies within a flow fragment.
+ * 
+ * The function checks whether a given point lies within the boundaries 
+ * of a flow fragment using axis-aligned bounding boxes and directional checks.
+ * 
+ * @param point The point to check.
+ * @param fB The fragment boundaries containing the flow fragment's details.
+ * @return bool true if the point lies within the flow fragment, false otherwise.
+ */
+bool isPointInFlow(const Dune::FieldVector<double, dim>& point, const fragmentBoundaries& fB) {
+    if (point[0] < fB.minX || point[0] > fB.maxX || point[1] < fB.minY || point[1] > fB.maxY) {
+        return false;
+    }
+
+    if (fB.direction == 0 || fB.direction == 3) {
+        Dune::FieldVector<double, dim> vec1 = point - fB.start1;
+        Dune::FieldVector<double, dim> vec2 = point - fB.start2;
+        double cross1 = fB.b1[0] * vec1[1] - fB.b1[1] * vec1[0];
+        double cross2 = fB.b2[0] * vec2[1] - fB.b2[1] * vec2[0];
+        return !(cross1 > 0 || cross2 < 0);
+    }
+
+    return true;
+}
+
 
 std::vector<double> overallHeight(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
                                 std::vector<double> height, RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, std::array<int, dim> gridSize){
@@ -112,28 +237,16 @@ std::vector<double> overallHeight(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune:
     Dune::FieldVector<double, dim> resCellSize = {widthGrid[0]/gridSize[0], widthGrid[1]/gridSize[1]}; //acctual cell size is slightly smaller than callSize
 
     for(auto& v : vertices(gridView)){
-        double elevation_val = 0;
-        auto cornerI = v.geometry().corner(0);
-        double x = (cornerI[0] - cellSize[0]/2)/(resCellSize[0]); //conversion to reference grid data
-        double y = (cornerI[1] - cellSize[1]/2)/(resCellSize[1]);
+        auto corner = v.geometry().corner(0);
+        Dune::FieldVector<double, 2> refCorner = convertToReferenceCoordinates(corner, cellSize, resCellSize);
 
-        std::vector<int> neighbors= calcNeighbors(x, y, gridSize);
+        std::vector<int> neighbors= calcNeighbors(refCorner, gridSize);
         int neighborX1 = neighbors[0];
         int neighborX2 = neighbors[1];
         int neighborY1 = neighbors[2];
         int neighborY2 = neighbors[3];
         
-
-        if(neighborX2==-2 && neighborY2 == -2){ // vertex in cell
-            elevation_val =elevation_raster(neighborX1, neighborY1); 
-        } else if(neighborX2==-2 && neighborY2 != -2){ //vertex between two cells in y direction
-            elevation_val = (elevation_raster(neighborX1, neighborY1) + elevation_raster(neighborX1, neighborY2))/2;
-        } else if(neighborX2 != -2 && neighborY2 == -2){ //vertex between two cells in x direction
-            elevation_val = (elevation_raster(neighborX1, neighborY1) + elevation_raster(neighborX2, neighborY1))/2;
-        } else{ //vertex between four cells
-            elevation_val = (elevation_raster(neighborX1, neighborY1) + elevation_raster(neighborX1, neighborY2)+ elevation_raster(neighborX2, neighborY1) + elevation_raster(neighborX2, neighborY2))/4;
-        }
-
+        double elevation_val = interpolateElevation(refCorner, gridSize, elevation_raster);
 
         if(elevation_val < -5000 || elevation_val > 10000) elevation_val = 0; //wrong values
 
@@ -160,30 +273,19 @@ std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim,
 
     
     for(auto& v : vertices(gridView)){ //check for each vertex if its part of a fragment
-        auto cornerI = v.geometry().corner(0); //avoid recomputation
+        auto corner = v.geometry().corner(0); //avoid recomputation
  
         for (const auto& fB : fragmentsBoundaries){
 
-            if(cornerI[0] < fB.minX) continue; //test if vertex is outside bounding box
-            else if (cornerI[0] > fB.maxX)continue;
-            if(cornerI[1] < fB.minY) continue;
-            else if (cornerI[1] > fB.maxY) continue;
+            if (!isPointInFlow(corner, fB)) continue;
 
-            // if flow is horizontal/vertical the bounding box describes it correctly --> following can be skipped
-            if (fB.direction == 0 || fB.direction == 3){  //computes if vertex is inside a flow
-                Dune::FieldVector<double, dim> vec1 = cornerI - fB.start1;
-                Dune::FieldVector<double, dim> vec2 = cornerI - fB.start2;
-                double cross1 = fB.b1[0] * vec1[1] - fB.b1[1] * vec1[0];
-                double cross2 = fB.b2[0] * vec2[1] - fB.b2[1] * vec2[0];
-                
-                if(cross1 > 0 || cross2 < 0) continue;
-            }
             if(fB.direction == 3){ //diagonal //following not essential to work but smoothens results
                 
-                double x = (cornerI[0] - cellSize[0]/2)/(resCellSize[0]); //conversion to reference grid data
-                double y = (cornerI[1] - cellSize[1]/2)/(resCellSize[1]);
+                Dune::FieldVector<double, 2> refCorner = convertToReferenceCoordinates(corner, cellSize, resCellSize);
+                double x = (corner[0] - cellSize[0]/2)/(resCellSize[0]); //conversion to reference grid data
+                double y = (corner[1] - cellSize[1]/2)/(resCellSize[1]);
 
-                std::vector<int> neighbors= calcNeighbors(x, y, gridSize);
+                std::vector<int> neighbors= calcNeighbors(refCorner, gridSize);
                 int neighborX1 = neighbors[0];
                 int neighborX2 = neighbors[1];
                 int neighborY1 = neighbors[2];
@@ -279,6 +381,7 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simp
             auto corner0 = element.geometry().corner(0);
             auto corner1 = element.geometry().corner(1);
             auto corner2 = element.geometry().corner(2); 
+
             std::vector<Dune::FieldVector<double, dim>> corners = {corner0, corner1, corner2};
     
             for (const auto& fB : fragmentsBoundaries){
@@ -351,49 +454,39 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simp
                     change=true; 
                     continue;}
 
-                double dist01 = squaredDistance(element.geometry().corner(0), element.geometry().corner(1));
-                double dist02 = squaredDistance(element.geometry().corner(0), element.geometry().corner(2));
+                double dist01 = squaredDistance(corner0, corner1);
+                double dist02 = squaredDistance(corner0, corner2);
 
                 
                 if (std::min({dist01, dist02}) < fB.minSize*fB.minSize){ continue;} //small enough
 
                 Dune::FieldVector<double, 2> hypo;
-                double yCenterHeight;
                 Dune::FieldVector<double, dim> hypoCenter;
 
                 //calc hypothenuse v; y value middle of height of triangle; point on center of hypothenuse
                 if (std::abs(dist01-dist02)< 1e-6){ //90deg at 0
-                    hypo = element.geometry().corner(2) - element.geometry().corner(1);
-                    hypoCenter = element.geometry().corner(1) + hypo/2;
-
-                    if (element.geometry().corner(0)[1] == element.geometry().corner(1)[1]){
-                        yCenterHeight = element.geometry().corner(0)[1] + (element.geometry().corner(2)[1] - element.geometry().corner(1)[1]) / 2;
-                    }
-                    else yCenterHeight = element.geometry().corner(0)[1] + (element.geometry().corner(1)[1] - element.geometry().corner(2)[1]) / 2;
-                    }
+                    hypo = corner2 - corner1;
+                    hypoCenter = corner1 + hypo/2;
+                }
                 else if ( dist01 > dist02){  //90deg at 2
-                    hypo = element.geometry().corner(0) - element.geometry().corner(1);
-                    hypoCenter = element.geometry().corner(1) + hypo/2;
-                    if(element.geometry().corner(2)[1] == element.geometry().corner(0)[1]) {
-                        yCenterHeight = element.geometry().corner(2)[1] + (element.geometry().corner(1)[1] - element.geometry().corner(0)[1]) / 2;}
-                    else yCenterHeight = element.geometry().corner(2)[1] + (element.geometry().corner(0)[1] - element.geometry().corner(1)[1]) / 2;
-                    }
+                    hypo = corner0 - corner1;
+                    hypoCenter = corner1 + hypo/2;
+                }
                 else { //90deg at 1
-                    hypo = element.geometry().corner(0) - element.geometry().corner(2);
-                    hypoCenter = element.geometry().corner(2) + hypo/2;
-                    if (element.geometry().corner(1)[1] == element.geometry().corner(2)[1]){
-                        yCenterHeight = element.geometry().corner(1)[1] + (element.geometry().corner(0)[1] - element.geometry().corner(2)[1]) / 2;}
-                    else yCenterHeight = element.geometry().corner(1)[1] + (element.geometry().corner(2)[1] - element.geometry().corner(0)[1]) / 2;
-                    }
+                    hypo = corner0 - corner2;
+                    hypoCenter = corner2 + hypo/2;
+                }
+
             
 
                 if(fB.direction == 1 || fB.direction == 2){ //flow (and border) horizontal or vertical (dot product with {1,0}/{0,1})
 
-                    if (std::abs(hypo[0]) < epsilonAngle || std::abs(hypo[1]) < epsilonAngle){ //hypothenuse vertical or horizontal
+                    if (std::abs(hypo[0]) < epsilonAngle || std::abs(hypo[1]) < epsilonAngle){ //hypotenuse vertical or horizontal
                         grid->mark(1, element);//hypothenuse vertical or horizontal
                         change = true;
                         continue;
                     }
+                    // hypotenuse
                     //std::cout << std::abs(fB.start1[1] - hypoCenter[1]) << " " << std::abs(fB.start2[1] - hypoCenter[1]) << " < " << fB.minSize/2 << std::endl;
                     if(fB.direction == 1 && (std::abs(fB.start1[1] - hypoCenter[1]) < fB.minSize/2 || std::abs(fB.start2[1] - hypoCenter[1]) < fB.minSize/2)){continue;} // border close to middle of triangle (in right angle)
                     else if(fB.direction == 2 && (std::abs(fB.start1[0] - hypoCenter[0]) < fB.minSize/2 || std::abs(fB.start2[0] - hypoCenter[0]) < fB.minSize/2)){ continue;} // border close to middle of triangle (in right angle)
@@ -440,6 +533,9 @@ std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_rast
     double half1= cellSize[0]/2;
     double quotient2 = ((gridSize[1]-1.0)/gridSize[1]) * cellSize[1];
     double half2= cellSize[1]/2;
+
+    const std::array<double, 2> quotient = {((gridSize[0]-1.0)/gridSize[0]) * cellSize[0], ((gridSize[1]-1.0)/gridSize[1]) * cellSize[1]};
+    const std::array<double, 2> half ={cellSize[0]/2, cellSize[1]/2};
 
     std::cout << "Start finding flow fragments" << std::endl;
     for (int i = 0; i < gridSize[0]; i++){ 
@@ -514,12 +610,10 @@ std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_rast
                 depht = std::min(0.4, depht);
 
                 //std::cout << "final: " << start << " - " << end << std::endl;
+                Dune::FieldVector<double, 2>shift = {0.5, 0.5}; //fragmetns should start in middle of cell
+                start = convertToGlobalCoordinates(start+shift, quotient, half);
+                end = convertToGlobalCoordinates(end+shift, quotient, half);
                 
-                start[0] = (start[0] + 0.5) * quotient1 + half1; //cell centered date vs corner data (n cells on lenght n-1)
-                start[1] = (start[1] + 0.5) * quotient2 + half2;
-                end[0]   = (end[0]   + 0.5) * quotient1 + half1;
-                end[1]   = (end[1]   + 0.5) * quotient2 + half2;
-
                 flowFragment f = {start, end, width * cellSize[0]}; //TODO *cellSize[0]? or cellSize[1]
                 f.depht = depht * cellSize[0];
                 if(f.depht < 0.2) std::cout <<"shallow flow: " << f.depht << std::endl;
@@ -558,8 +652,7 @@ std::vector<double> adjustFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, D
     const GridView gridView = grid->leafGridView();
 
     Dune::FieldVector<double, dim> flowVector = end - start;
-    Dune::FieldVector<double, dim> normal_flowVector = { -flowVector[1]/ std::sqrt(flowVector[0]*flowVector[0] + flowVector[1]*flowVector[1]), 
-                                                    flowVector[0]/ std::sqrt(flowVector[0]*flowVector[0] + flowVector[1]*flowVector[1])} ;
+    Dune::FieldVector<double, dim> normal_flowVector = calculateNormal(flowVector);
 
     if (widthEnd < 0) widthEnd = widthStart;
 

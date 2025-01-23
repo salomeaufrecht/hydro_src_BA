@@ -270,7 +270,7 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simp
     
     int c=0;
     bool change = true;
-    while( c<7 && change){ 
+    while( c<50 && change){ 
         std::cout << c << std::endl;
         change = false;
         c++;  
@@ -394,7 +394,8 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simp
                         change = true;
                         continue;
                     }
-                    if(fB.direction == 1 && (std::abs(fB.start1[1] - hypoCenter[1]) < fB.minSize/2 || std::abs(fB.start2[1] - hypoCenter[1]) < fB.minSize/2)){ continue;} // border close to middle of triangle (in right angle)
+                    //std::cout << std::abs(fB.start1[1] - hypoCenter[1]) << " " << std::abs(fB.start2[1] - hypoCenter[1]) << " < " << fB.minSize/2 << std::endl;
+                    if(fB.direction == 1 && (std::abs(fB.start1[1] - hypoCenter[1]) < fB.minSize/2 || std::abs(fB.start2[1] - hypoCenter[1]) < fB.minSize/2)){continue;} // border close to middle of triangle (in right angle)
                     else if(fB.direction == 2 && (std::abs(fB.start1[0] - hypoCenter[0]) < fB.minSize/2 || std::abs(fB.start2[0] - hypoCenter[0]) < fB.minSize/2)){ continue;} // border close to middle of triangle (in right angle)
                 }
                 else if(fB.direction == 3){ //flow diagonal

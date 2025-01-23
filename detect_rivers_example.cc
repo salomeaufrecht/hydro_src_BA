@@ -326,7 +326,7 @@ std::cout << "set river height grid" << std::endl;
     Dune::VTKWriter<GridView> vtkWriter(gridView);
     vtkWriter.addVertexData(height, "height");
    
-    vtkWriter.write("nakhon_rivers");
+    vtkWriter.write("nakhon_rivers_example");
 
 
     }

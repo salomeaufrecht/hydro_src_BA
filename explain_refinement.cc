@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     std::vector<flowFragment> fragments01 = {f01};
 
 
-    refineGridwithFragments(grid01, fragments01, 0.4, {1.0, 1.0});
+    refineGridwithFragments(grid01, fragments01, 0.16, {1.0, 1.0});
 
 
     VTKWriter<GridView> vtkWriter(gridView01);

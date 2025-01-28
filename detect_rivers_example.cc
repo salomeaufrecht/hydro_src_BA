@@ -307,11 +307,9 @@ int main(int argc, char **argv)
   refineGridwithFragments(grid, rivers, 0.5, H); 
   std::cout << "refine grid done " << std::endl;
 
-  std::vector<double> height(gridView.indexSet().size(2), 0);
-  
 
   std::cout << "set overall height" << std::endl;
-  height = overallHeight(gridView, height, elevation_raster, H, N);
+   std::vector<double> height = overallHeight(gridView, elevation_raster, H, N);
   std::cout << "overall heigth done" << std::endl;
 
 std::cout << "set river height grid" << std::endl;

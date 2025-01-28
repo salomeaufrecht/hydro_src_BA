@@ -89,7 +89,7 @@ std::vector<double> applyFlowHeightFragments(const Dune::ALUGrid< dim, dim, Dune
  * @return std::vector<double> The updated height values.
  */
 std::vector<double> overallHeight(const Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
-                                std::vector<double> height, RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, std::array<int, dim> gridSize);
+                                RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, std::array<int, dim> gridSize);
 
 /**
  * @brief Refines the grid to ensure accurate representation of flow fragments.
@@ -118,9 +118,12 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simp
  * @param direction_raster The raster dataset containing flow direction values.
  * @param cellSize The size of each grid cell in physical units.
  * @param gridSize The dimensions of the grid.
+ * @param minAcc The minimum accumulation value for flow detection (default: 50).
+ * @param maxAccDiff The maximum accumulation difference for flow detection (default: 200).
  * @return std::vector<flowFragment> A vector of detected flow fragments.
  */
-std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, std::array<double, 2> cellSize, std::array<int, dim> gridSize);
+std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster,
+                                             std::array<double, 2> cellSize, std::array<int, dim> gridSize, double minAcc = 50, double maxAccDiff=200);
 
 /**
  * @brief Adjusts height values for a specific flow fragment.

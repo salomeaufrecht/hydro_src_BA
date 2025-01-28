@@ -186,11 +186,11 @@ int main(int argc, char **argv)
       double oy = image.originLat();
       const int dim = 2;
       std::array<int, dim> N;
-      N[0] = 16; //1800
-      N[1] = 16; //1200
+      N[0] = 25; //1800
+      N[1] = 25; //1200
       std::array<double, dim> H;
-      H[0] = 6; 
-      H[1] = 6; 
+      H[0] = 90; 
+      H[1] = 90; 
       Dune::FieldVector<double, dim> L;
       L[0] = N[0] * H[0];
       L[1] = N[1] * H[1];
@@ -299,11 +299,9 @@ int main(int argc, char **argv)
   std::cout << "refine grid" << std::endl;
   refineGridwithFragments(grid, rivers, 0.5, H); 
   std::cout << "refine grid done " << std::endl;
-
-  std::vector<double> height(gridView.indexSet().size(2), 0);
   
   std::cout << "set overall height" << std::endl;
-  height = overallHeight(gridView, height, elevation_raster, H, N);
+  std::vector<double> height = overallHeight(gridView, elevation_raster, H, N);
   std::cout << "overall heigth done" << std::endl;
 
   std::cout << "set river height grid" << std::endl;

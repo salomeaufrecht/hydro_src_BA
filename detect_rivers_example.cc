@@ -285,14 +285,14 @@ int main(int argc, char **argv)
     std::cout << river.start << " - " << river.end << ": width: " << river.widthStart << "; depht: " << river.depht << std::endl;
   }
         
-    typedef Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming > Grid_;
+    typedef Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming > Grid_;
     using GridView = Grid_::LeafGridView;
 
 
     // create grid
-    const std::array<unsigned, dim> n_ = {N[0], N[1]};
-    const Dune::FieldVector<double, dim> lower = {0.5 * H[0], 0.5 * H[1]};
-    const Dune::FieldVector<double, dim> upper = {L[0] - 0.5 * H[0], L[1] - 0.5 * H[1]};
+    const std::array<unsigned, 2> n_ = {N[0], N[1]};
+    const Dune::FieldVector<double, 2> lower = {0.5 * H[0], 0.5 * H[1]};
+    const Dune::FieldVector<double, 2> upper = {L[0] - 0.5 * H[0], L[1] - 0.5 * H[1]};
 
 
   std::cout << "make grid" << std::endl;
@@ -311,11 +311,11 @@ int main(int argc, char **argv)
   
 
   std::cout << "set overall height" << std::endl;
-  height = overallHeight(grid, height, elevation_raster, H, N);
+  height = overallHeight(gridView, height, elevation_raster, H, N);
   std::cout << "overall heigth done" << std::endl;
 
 std::cout << "set river height grid" << std::endl;
-  height= applyFlowHeightFragments(grid, rivers, height, elevation_raster, H, N);
+  height= applyFlowHeightFragments(gridView, rivers, height, elevation_raster, H, N);
   std::cout << "river heigth done" << std::endl;
   
 
@@ -327,6 +327,7 @@ std::cout << "set river height grid" << std::endl;
     vtkWriter.addVertexData(height, "height");
    
     vtkWriter.write("nakhon_rivers_example");
+
 
 
     }

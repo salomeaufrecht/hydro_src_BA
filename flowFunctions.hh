@@ -56,6 +56,7 @@ struct fragmentBoundaries{
     int direction = 0;                     ///< Direction of the fragment (0: any, 1: horizontal, 2: vertical, 3: diagonal).
     double minSize = 0.1;                  ///< Minimum size of the fragment for refinement purposes.
     double depht = 0;                      ///< Depth of the flow fragment.
+    Dune::FieldVector<double, dim> normal;  ///< The vector pointing away from the flow vector.
 };
 
 /**
@@ -72,7 +73,7 @@ struct fragmentBoundaries{
  * @param gridSize The dimensions of the grid.
  * @return std::vector<double> The updated height values.
  */
-std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
+std::vector<double> applyFlowHeightFragments(const Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
         std::vector<flowFragment> fragments, std::vector<double> height, RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, std::array<int, dim> gridSize);
 
 /**
@@ -87,7 +88,7 @@ std::vector<double> applyFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim,
  * @param cellSize The size of each cell in the grid.
  * @return std::vector<double> The updated height values.
  */
-std::vector<double> overallHeight(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
+std::vector<double> overallHeight(const Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
                                 std::vector<double> height, RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, std::array<int, dim> gridSize);
 
 /**
@@ -101,9 +102,10 @@ std::vector<double> overallHeight(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune:
  * @param fragments A vector containing all flow fragments to be refined.
  * @param minSizeFactor The minimum size factor for refinement, relative to fragment width (default: 0.4).
  * @param cellSize The size of each grid cell (default: {1.0, 1.0}).
+ * @param maxIterations The maximal amount of refinement iterations (default: 50).
  */
 void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
-        std::vector<flowFragment> fragments, double minSizeFactor = 0.4, std::array<double, 2> cellSize = {1.0, 1.0});
+        std::vector<flowFragment> fragments, double minSizeFactor = 0.4, std::array<double, 2> cellSize = {1.0, 1.0}, int maxIterations=50);
 
 /**
  * @brief Detects flow fragments based on accumulation and direction raster data.

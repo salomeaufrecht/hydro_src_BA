@@ -303,11 +303,11 @@ int main(int argc, char **argv)
   std::vector<double> height(gridView.indexSet().size(2), 0);
   
   std::cout << "set overall height" << std::endl;
-  height = overallHeight(grid, height, elevation_raster, H, N);
+  height = overallHeight(gridView, height, elevation_raster, H, N);
   std::cout << "overall heigth done" << std::endl;
 
   std::cout << "set river height grid" << std::endl;
-  height= applyFlowHeightFragments(grid, rivers, height, elevation_raster, H, N);
+  height= applyFlowHeightFragments(gridView, rivers, height, elevation_raster, H, N);
   std::cout << "river heigth done" << std::endl;
 
 

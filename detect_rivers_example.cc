@@ -180,8 +180,8 @@ int main(int argc, char **argv)
       // create YaspGrid 
       double dx = std::abs(image.dLong());
       double dy = std::abs(image.dLat());
-      double ox = image.originLong();
-      double oy = image.originLat();
+      //double ox = image.originLong();
+      //double oy = image.originLat();
       const int dim = 2;
       //std::array<int, dim> N;
       //N[0] = 3; //1800
@@ -199,10 +199,10 @@ int main(int argc, char **argv)
       L[0] = N[0] * H[0];
       L[1] = N[1] * H[1];
 
-      typedef Dune::YaspGrid<dim> Grid;
-      typedef Grid::ctype DF;
-      typedef double RF;
-      auto gridp = std::make_shared<Grid>(L, N, std::bitset<dim>(0ULL), 1);
+      //typedef Dune::YaspGrid<dim> Grid;
+      //typedef Grid::ctype DF;
+      //typedef double RF;
+      //auto gridp = std::make_shared<Grid>(L, N, std::bitset<dim>(0ULL), 1);
 
       // now make raster canvas in cell-centered mode
       auto elevation_raster = RasterDataSet<float>(99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
@@ -217,69 +217,68 @@ int main(int argc, char **argv)
       //direction_raster.paste(dimage2);
 
       // write a grid file    
-      typedef Grid::LeafGridView GV;
-      GV gv = gridp->leafGridView();
-
-      using FEM = Dune::PDELab::P0LocalFiniteElementMap<RF, RF, dim>;
-      using CON = Dune::PDELab::P0ParallelConstraints;
-      using VBE = Dune::PDELab::ISTL::VectorBackend<>;
-      using GFS = Dune::PDELab::GridFunctionSpace<GV, FEM, CON, VBE>;
-      using Z = Dune::PDELab::Backend::Vector<GFS, RF>;
-      using ZDGF = Dune::PDELab::DiscreteGridFunction<GFS, Z>;
-      using VTKF = Dune::PDELab::VTKGridFunctionAdapter<ZDGF>;
-
-      FEM fem(Dune::GeometryTypes::cube(dim));
-      CON con;
-      GFS gfs(gv, fem, con);
-      gfs.name("Vh");
-      Z z(gfs);
-      ZDGF zdgf(gfs, z);
-      Z az(gfs);
-      ZDGF azdgf(gfs, az);
-      Z dz(gfs);
-      ZDGF dzdgf(gfs, dz);
-
-      auto bathymmetrylambda = [&](const auto &e, const auto &xlocal){
-        auto x = e.geometry().center();
-        int cellx = std::floor(x[0] / H[0]);
-        int celly = std::floor(x[1] / H[1]);
-        return elevation_raster(cellx, celly);
-      };
-      auto bathymmetrygf = Dune::PDELab::makeGridFunctionFromCallable(gv, bathymmetrylambda);
-      Dune::PDELab::interpolate(bathymmetrygf, gfs, z);
-
-      auto accumulationlambda = [&](const auto &e, const auto &xlocal){
-        auto x = e.geometry().center();
-        int cellx = std::floor(x[0] / H[0]);
-        int celly = std::floor(x[1] / H[1]);
-        return accumulation_raster(cellx, celly);
-      };
-      auto accumulationgf = Dune::PDELab::makeGridFunctionFromCallable(gv, accumulationlambda);
-
-      auto directionlambda = [&](const auto &e, const auto &xlocal){
-        auto x = e.geometry().center();
-        int cellx = std::floor(x[0] / H[0]);
-        int celly = std::floor(x[1] / H[1]);
-        int value = static_cast<int>(direction_raster(cellx, celly));
-        return static_cast<float>(value);
-      };
-      auto directiongf = Dune::PDELab::makeGridFunctionFromCallable(gv, directionlambda);
-
-      Dune::PDELab::interpolate(bathymmetrygf, gfs, z);
-      Dune::PDELab::interpolate(accumulationgf, gfs, az);
-      Dune::PDELab::interpolate(directiongf, gfs, dz);
-      using Writer = Dune::VtkImageDataWriter<GV>;
-      Dune::PvdWriter<Writer> pvdWriter(gv, Dune::Vtk::FormatTypes::COMPRESSED, Dune::Vtk::DataTypes::FLOAT32);
-      pvdWriter.addCellData(std::make_shared<VTKF>(zdgf, "bathymmetry"));
-      pvdWriter.addCellData(std::make_shared<VTKF>(azdgf, "accumulation"));
-      pvdWriter.addCellData(std::make_shared<VTKF>(dzdgf, "direction"));
-      std::string fullfilename = "rivers.vti";
-      pvdWriter.writeTimestep(0.0, fullfilename);
+      //typedef Grid::LeafGridView GV;
+      //GV gv = gridp->leafGridView();
+//
+      //using FEM = Dune::PDELab::P0LocalFiniteElementMap<RF, RF, dim>;
+      //using CON = Dune::PDELab::P0ParallelConstraints;
+      //using VBE = Dune::PDELab::ISTL::VectorBackend<>;
+      //using GFS = Dune::PDELab::GridFunctionSpace<GV, FEM, CON, VBE>;
+      //using Z = Dune::PDELab::Backend::Vector<GFS, RF>;
+      //using ZDGF = Dune::PDELab::DiscreteGridFunction<GFS, Z>;
+      //using VTKF = Dune::PDELab::VTKGridFunctionAdapter<ZDGF>;
+//
+      //FEM fem(Dune::GeometryTypes::cube(dim));
+      //CON con;
+      //GFS gfs(gv, fem, con);
+      //gfs.name("Vh");
+      //Z z(gfs);
+      //ZDGF zdgf(gfs, z);
+      //Z az(gfs);
+      //ZDGF azdgf(gfs, az);
+      //Z dz(gfs);
+      //ZDGF dzdgf(gfs, dz);
+//
+      //auto bathymmetrylambda = [&](const auto &e, const auto &xlocal){
+      //  auto x = e.geometry().center();
+      //  int cellx = std::floor(x[0] / H[0]);
+      //  int celly = std::floor(x[1] / H[1]);
+      //  return elevation_raster(cellx, celly);
+      //};
+      //auto bathymmetrygf = Dune::PDELab::makeGridFunctionFromCallable(gv, bathymmetrylambda);
+      //Dune::PDELab::interpolate(bathymmetrygf, gfs, z);
+//
+      //auto accumulationlambda = [&](const auto &e, const auto &xlocal){
+      //  auto x = e.geometry().center();
+      //  int cellx = std::floor(x[0] / H[0]);
+      //  int celly = std::floor(x[1] / H[1]);
+      //  return accumulation_raster(cellx, celly);
+      //};
+      //auto accumulationgf = Dune::PDELab::makeGridFunctionFromCallable(gv, accumulationlambda);
+//
+      //auto directionlambda = [&](const auto &e, const auto &xlocal){
+      //  auto x = e.geometry().center();
+      //  int cellx = std::floor(x[0] / H[0]);
+      //  int celly = std::floor(x[1] / H[1]);
+      //  int value = static_cast<int>(direction_raster(cellx, celly));
+      //  return static_cast<float>(value);
+      //};
+      //auto directiongf = Dune::PDELab::makeGridFunctionFromCallable(gv, directionlambda);
+//
+      //Dune::PDELab::interpolate(bathymmetrygf, gfs, z);
+      //Dune::PDELab::interpolate(accumulationgf, gfs, az);
+      //Dune::PDELab::interpolate(directiongf, gfs, dz);
+      //using Writer = Dune::VtkImageDataWriter<GV>;
+      //Dune::PvdWriter<Writer> pvdWriter(gv, Dune::Vtk::FormatTypes::COMPRESSED, Dune::Vtk::DataTypes::FLOAT32);
+      //pvdWriter.addCellData(std::make_shared<VTKF>(zdgf, "bathymmetry"));
+      //pvdWriter.addCellData(std::make_shared<VTKF>(azdgf, "accumulation"));
+      //pvdWriter.addCellData(std::make_shared<VTKF>(dzdgf, "direction"));
+      //std::string fullfilename = "rivers.vti";
+      //pvdWriter.writeTimestep(0.0, fullfilename);
 
 
 
   std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
-
 
   for(auto river : rivers){
     std::cout << river.start << " - " << river.end << ": width: " << river.widthStart << "; depht: " << river.depht << std::endl;

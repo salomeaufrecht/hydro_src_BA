@@ -28,9 +28,9 @@ int main(int argc, char *argv[])
     using GridView = Grid::LeafGridView;
 
         // Start with a structured grid
-    const std::array<unsigned, 2> n = {3, 1};
+    const std::array<unsigned, 2> n = {5, 1};
     const FieldVector<double, 2> lower = {0, 0};
-    const FieldVector<double, 2> upper = {3, 1};
+    const FieldVector<double, 2> upper = {5, 1};
 
     std::ofstream outFile("cells_around_log.txt");
     std::ofstream outTable("cells_around_table.txt");
@@ -49,9 +49,9 @@ int main(int argc, char *argv[])
     }
      outTable << " \\\\" << std::endl << "\\hline" << std::endl;
 
-    std::vector<int> amountElements(100, 0);    
-    for(int w = 1; w<6; w++){
-        double width = w/10.0;
+    std::vector<int> amountElements(300, 0);    
+    for(int w = 1; w<21; w++){
+        double width = w/40.0;
 
         //outTable << width;
         for(double msf : minSizeFactors){
@@ -90,8 +90,8 @@ int main(int argc, char *argv[])
     }
 
             
-    for(int w = 1; w<6; w++){
-        double width = w/10.0;
+    for(int w = 1; w<21; w++){
+        double width = w/40.0;
 
         outTable << width;
         for(double msf : minSizeFactors){
@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
             std::shared_ptr<Grid> grid01 = StructuredGridFactory<Grid>::createSimplexGrid(lower, upper, n);
 
             const GridView gridView01 = grid01->leafGridView();
-            flowFragment f01 = {Dune::FieldVector<double, 2>{1.5, 0}, Dune::FieldVector<double, 2>{1.5, 1}, width};
+            flowFragment f01 = {Dune::FieldVector<double, 2>{2.5, 0}, Dune::FieldVector<double, 2>{2.5, 1}, width};
             std::vector<flowFragment> fragments01 = {f01};
 
 
@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
             for(auto element : elements(gridView01)){
                 counter++;
             }
-            counter -= amountElements[w*10+int(msf*10)] + 4;
+            counter -= amountElements[w*10+int(msf*10)] + 8;
 
             outFile << "Breite: " << width << ", minSIzeFactor: " << msf << ": " << counter << " elements" << std::endl;
             outTable << " & " << counter;
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
         outFile << std::endl;
         outTable << " \\\\" << std::endl;
     }
-    outTable << "\end{tabular}";
+    outTable << "\\end{tabular}";
 
      
     outTable.close();

@@ -183,15 +183,15 @@ int main(int argc, char **argv)
       //double ox = image.originLong();
       //double oy = image.originLat();
       const int dim = 2;
-      //std::array<int, dim> N;
-      //N[0] = 3; //1800
-      //N[1] = 3; //1200
+      std::array<int, dim> N;
+      N[0] = 741; //1800
+      N[1] = 741; //1200
       //std::array<double, dim> H;
       //H[0] = 5; 
       //H[1] = 5; 
-      std::array<int, dim> N;
-      N[0] = 6; //1800
-      N[1] = 6; //1200
+      //std::array<int, dim> N;
+      //N[0] = 6; //1800
+      //N[1] = 6; //1200
       std::array<double, dim> H;
       H[0] = 1; 
       H[1] = 1;

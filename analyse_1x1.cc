@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
     
     outTable << "\\begin{tabular}{ c |" ;
     std::vector<double> minSizeFactors;
-    for( int i = 1; i < 8; i++){
+    for( int i = 1; i < 11; i++){
         double msf = i/10.0;
         minSizeFactors.push_back(msf);
         outTable << " c";
@@ -50,8 +50,8 @@ int main(int argc, char *argv[])
      outTable << " \\\\" << std::endl << "\\hline" << std::endl;
 
             
-    for(int w = 1; w<6; w++){
-        double width = w/10.0;
+    for(int w = 1; w<21; w++){
+        double width = w/40.0;
 
         outTable << width;
         for(double msf : minSizeFactors){

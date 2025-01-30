@@ -559,11 +559,7 @@ std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_rast
                         break;
                 
                     }
-                    endI = round(end[0]); 
-                    endJ = round(end[1]);
-                    endDir = int(direction_raster(endI, endJ));
-                    accEnd = accumulation_raster(endI, endJ);
-
+                    
                     if(end[0] >= gridSize[0] || end[1] >= gridSize[1] || end[0] < 0 || end[1] < 0) { //end is outside of grid
                         endI = round(currPoint[0]); 
                         endJ = round(currPoint[1]);
@@ -571,6 +567,12 @@ std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_rast
                         end=(currPoint + end)/2; //undo changes
                         break;
                     }
+                    
+                    endI = round(end[0]); 
+                    endJ = round(end[1]);
+                    endDir = int(direction_raster(endI, endJ));
+                    accEnd = accumulation_raster(endI, endJ);
+
                     if(std::abs(accStart-accEnd)>maxAccDiff){
                         if(currPoint==start) break;
                         endI = round(currPoint[0]); 
@@ -578,6 +580,7 @@ std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_rast
                         skip[endJ*gridSize[0]+endI]=0; //end should not be skipped
                         accEnd = accumulation_raster(endI, endJ); 
                         end = currPoint;
+                        break;
                     }
 
                 }
@@ -588,8 +591,8 @@ std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_rast
                 double depht = std::sqrt(volume/400000);
                 width = std::min(1.0, width);
                 depht = std::min(0.25, depht);
-                std::cout << "width: " << width << " --> " << width*90 << std::endl;
-                std::cout << "depht: " <<depht << " --> " << depht*90 << std::endl << std::endl;
+                //std::cout << "width: " << width << " --> " << width*90 << std::endl;
+                //std::cout << "depht: " <<depht << " --> " << depht*90 << std::endl << std::endl;
 
                 //std::cout << "final: " << start << " - " << end << std::endl;
                 Dune::FieldVector<double, 2>shift = {0.5, 0.5}; //fragmetns should start in middle of cell
@@ -597,12 +600,9 @@ std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_rast
                 end = convertToGlobalCoordinates(end+shift, resCellSize, half);
 
                 
-                
                 flowFragment f = {start, end, width * cellSize[0]}; 
                 if(dir==4 || dir==64) f.widthStart= width * cellSize[1];
                 f.depht = depht * cellSize[0];
-                if(f.depht < 0.2) std::cout <<"shallow flow: " << f.depht << std::endl;
-
                 rivers.push_back(f);
             }
         }

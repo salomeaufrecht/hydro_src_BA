@@ -34,6 +34,11 @@
 #target_link_libraries(test02 PUBLIC GDAL::GDAL)
 #target_link_libraries(test02 PUBLIC NetCDF::NetCDF)
 
+#add_executable("test00" test00.cc)
+#target_link_dune_default_libraries(test00)
+#target_link_libraries(test00 PUBLIC GDAL::GDAL)
+#target_link_libraries(test00 PUBLIC NetCDF::NetCDF)
+
 #add_executable("test03" test03.cc)
 #target_link_dune_default_libraries(test03)
 #target_link_libraries(test03 PUBLIC GDAL::GDAL)
@@ -64,26 +69,61 @@
 #target_link_libraries(test08_overallFlow PUBLIC GDAL::GDAL)
 #target_link_libraries(test08_overallFlow PUBLIC NetCDF::NetCDF)
 
-add_executable("test09_headerData" test09_headerData.cc flowFunctions.cc flowFunctions.hh)
-target_link_dune_default_libraries(test09_headerData)
-target_link_libraries(test09_headerData PUBLIC GDAL::GDAL)
-target_link_libraries(test09_headerData PUBLIC NetCDF::NetCDF)
+#add_executable("test09_headerData" test09_headerData.cc flowFunctions.cc flowFunctions.hh)
+#target_link_dune_default_libraries(test09_headerData)
+#target_link_libraries(test09_headerData PUBLIC GDAL::GDAL)
+#target_link_libraries(test09_headerData PUBLIC NetCDF::NetCDF)
 
-add_executable("test10_quantityTriangles" test10_quantityTriangles.cc flowFunctions.cc flowFunctions.hh)
-target_link_dune_default_libraries(test10_quantityTriangles)
-target_link_libraries(test10_quantityTriangles PUBLIC GDAL::GDAL)
-target_link_libraries(test10_quantityTriangles PUBLIC NetCDF::NetCDF)
-
-add_executable("test11_seperatetesting" test11_seperatetesting.cc flowFunctions.cc flowFunctions.hh)
-target_link_dune_default_libraries(test11_seperatetesting)
-target_link_libraries(test11_seperatetesting PUBLIC GDAL::GDAL)
-target_link_libraries(test11_seperatetesting PUBLIC NetCDF::NetCDF)
+#add_executable("test10_quantityTriangles" test10_quantityTriangles.cc flowFunctions.cc flowFunctions.hh)
+#target_link_dune_default_libraries(test10_quantityTriangles)
+#target_link_libraries(test10_quantityTriangles PUBLIC GDAL::GDAL)
+#target_link_libraries(test10_quantityTriangles PUBLIC NetCDF::NetCDF)
+#
+#add_executable("test11_seperatetesting" test11_seperatetesting.cc flowFunctions.cc flowFunctions.hh)
+#target_link_dune_default_libraries(test11_seperatetesting)
+#target_link_libraries(test11_seperatetesting PUBLIC GDAL::GDAL)
+#target_link_libraries(test11_seperatetesting PUBLIC NetCDF::NetCDF)
 
 
 #add_executable("test06" test06.cc)
 #target_link_dune_default_libraries(test06)
 #target_link_libraries(test06 PUBLIC GDAL::GDAL)
 #target_link_libraries(test06 PUBLIC NetCDF::NetCDF)
+
+#add_executable("detect_rivers01" detect_rivers01.cc flowFunctions.cc flowFunctions.hh)
+#target_link_dune_default_libraries(detect_rivers01)
+#target_link_libraries(detect_rivers01 PUBLIC GDAL::GDAL)
+#target_link_libraries(detect_rivers01 PUBLIC NetCDF::NetCDF)
+
+add_executable("detect_rivers_example" detect_rivers_example.cc flowFunctions.cc flowFunctions.hh)
+target_link_dune_default_libraries(detect_rivers_example)
+target_link_libraries(detect_rivers_example PUBLIC GDAL::GDAL)
+target_link_libraries(detect_rivers_example PUBLIC NetCDF::NetCDF)
+
+#add_executable("explain_refinement" explain_refinement.cc flowFunctions.cc flowFunctions.hh)
+#target_link_dune_default_libraries(explain_refinement)
+#target_link_libraries(explain_refinement PUBLIC GDAL::GDAL)
+#target_link_libraries(explain_refinement PUBLIC NetCDF::NetCDF)
+
+#add_executable("analyse_1x1" analyse_1x1.cc flowFunctions.cc flowFunctions.hh)
+#target_link_dune_default_libraries(analyse_1x1)
+#target_link_libraries(analyse_1x1 PUBLIC GDAL::GDAL)
+#target_link_libraries(analyse_1x1 PUBLIC NetCDF::NetCDF)
+
+#add_executable("analyse_3x3" analyse_3x3.cc flowFunctions.cc flowFunctions.hh)
+#target_link_dune_default_libraries(analyse_3x3)
+#target_link_libraries(analyse_3x3 PUBLIC GDAL::GDAL)
+#target_link_libraries(analyse_3x3 PUBLIC NetCDF::NetCDF)
+
+add_executable("runtime_detectFragments" runtime_detectFragments.cc flowFunctions.cc flowFunctions.hh)
+target_link_dune_default_libraries(runtime_detectFragments)
+target_link_libraries(runtime_detectFragments PUBLIC GDAL::GDAL)
+target_link_libraries(runtime_detectFragments PUBLIC NetCDF::NetCDF)
+
+add_executable("runtime_all" runtime_all.cc flowFunctions.cc flowFunctions.hh)
+target_link_dune_default_libraries(runtime_all)
+target_link_libraries(runtime_all PUBLIC GDAL::GDAL)
+target_link_libraries(runtime_all PUBLIC NetCDF::NetCDF)
 
 #add_executable("sphere" sphere.cc)
 #target_link_dune_default_libraries(sphere)
@@ -124,10 +164,10 @@ target_link_libraries(test11_seperatetesting PUBLIC NetCDF::NetCDF)
 #target_link_libraries(VCFV_example PUBLIC ${GDAL_LIBRARIES})
 #target_include_directories(VCFV_example PUBLIC ${GDAL_INCLUDE_DIRS})
 #
-#dune_symlink_to_source_files(FILES fourthexample.ini thirdexample.ini secondexample.ini firstexample.ini readtiff.ini nakhon.ini bw90mpre.ini stok.ini coupledexample.ini stok_long_term.ini VCFV_example.ini)
+dune_symlink_to_source_files(FILES fourthexample.ini thirdexample.ini secondexample.ini firstexample.ini readtiff.ini nakhon.ini bw90mpre.ini stok.ini coupledexample.ini stok_long_term.ini VCFV_example.ini)
 #
-#add_executable("dune-hydro" dune-hydro.cc)
-#target_link_dune_default_libraries(dune-hydro)
-#target_link_libraries(dune-hydro PUBLIC ${GDAL_LIBRARIES})
-#target_include_directories(dune-hydro PUBLIC ${GDAL_INCLUDE_DIRS})
+add_executable("dune-hydro" dune-hydro.cc)
+target_link_dune_default_libraries(dune-hydro)
+target_link_libraries(dune-hydro PUBLIC ${GDAL_LIBRARIES})
+target_include_directories(dune-hydro PUBLIC ${GDAL_INCLUDE_DIRS})
 #

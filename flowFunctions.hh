@@ -147,43 +147,14 @@ RasterDataSet<float> removeUpwardsRivers(RasterDataSet<float> accumulation_raste
  * @param scaleDephtFactor The scaling factor to calculate flow depth from accumulation values (default: 400).
  * @param scaleWidthFactor The scaling factor to calculate flow width from accumulation values (default: 5000).
  * @param maxIterations The maximal amount of refinement iterations (default: 50).
+ * @param minWidth The minimum width of a flow fragment in world coordinates (default: 1.0).
  * @return std::vector<double> 
  */
 std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, std::array<double, 2> cellSize, std::array<int, 2> gridSize,
                                     RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, RasterDataSet<float> elevation_raster,
-                                    double minSizeFactor = 0.4, double minAcc = 50, double maxAccDiff = 200, double scaleDephtFactor = 400, double scaleWidthFactor = 5000, int maxIterations = 50);
+                                    double minSizeFactor = 0.4, double minAcc = 50, double maxAccDiff = 200, double scaleDephtFactor = 400, 
+                                    double scaleWidthFactor = 5000, int maxIterations = 50, double minWidth = 1.0);
 
-/**
- * @brief Adjusts height values for a specific flow fragment.
- * 
- * Modifies the height values of the vertices influenced by a given flow fragment, 
- * considering its depth and geometry.
- * 
- * @param grid The ALUGrid representing the map.
- * @param f The flow fragment whose height values are to be adjusted.
- * @param height A vector of height values for the grid vertices.
- * @return std::vector<double> The updated height values.
- */
-std::vector<double> adjustFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, flowFragment f,
-                                             std::vector<double> height);
 
-/**
- * @brief Adjusts height values between two points based on flow parameters.
- * 
- * Modifies the height values of the vertices along a line defined by the 
- * start and end points, taking into account the width, depth, and geometry of the flow.
- * 
- * @param grid The ALUGrid representing the map.
- * @param start The starting point of the flow.
- * @param end The endpoint of the flow.
- * @param widthStart The width of the flow at the starting point.
- * @param widthEnd The width of the flow at the endpoint.
- * @param depht The depth of the flow.
- * @param height A vector of height values for the grid vertices.
- * @return std::vector<double> The updated height values.
- */
-std::vector<double> adjustFlowHeight (std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
-                                    Dune::FieldVector<double, 2> start, Dune::FieldVector<double, 2> end, double widthStart, double widthEnd, 
-                                    double depht, std::vector<double> height);
 
 #endif // FLOWFUNCTIONS_HH

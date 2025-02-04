@@ -684,14 +684,15 @@ RasterDataSet<float> removeUpwardsRivers(RasterDataSet<float> accumulation_raste
 
 std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, std::array<double, 2> cellSize, std::array<int, 2> gridSize,
                                     RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, RasterDataSet<float> elevation_raster,
-                                    double minSizeFactor, double minAcc, double maxAccDiff, double scaleDephtFactor, double scaleWidthFactor, int maxIterations){
+                                    double minSizeFactor, double minAcc, double maxAccDiff, double scaleDephtFactor, double scaleWidthFactor, int maxIterations, 
+                                    double minWidth){
     typedef Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming > Grid;
     using GridView = Grid::LeafGridView;
     const GridView gridView = grid->leafGridView();
 
 
     elevation_raster = removeUpwardsRivers(accumulation_raster, direction_raster, elevation_raster, cellSize, gridSize, minAcc);
-    std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, cellSize, gridSize, minAcc, maxAccDiff, scaleDephtFactor, scaleWidthFactor);
+    std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, cellSize, gridSize, minAcc, maxAccDiff, scaleDephtFactor, scaleWidthFactor, minWidth);
 
     refineGridwithFragments(grid, rivers, minSizeFactor, cellSize, maxIterations);
 
@@ -699,91 +700,3 @@ std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::si
     height = applyFlowHeightFragments(gridView, rivers, height, elevation_raster, cellSize, gridSize);
     return height;
 }
-
-std::vector<double> adjustFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, flowFragment f,
-                                             std::vector<double> height){
-    double cellSize = 90;
-    if(f.widthStart>=1) return adjustFlowHeight(grid, f.start, f.end, f.widthStart/cellSize, f.widthEnd/cellSize, f.depht, height);
-    else return adjustFlowHeight(grid, f.start, f.end, f.widthStart, f.widthEnd, f.depht, height);
-}
-
-std::vector<double> adjustFlowHeight (std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
-                                    Dune::FieldVector<double, 2> start, Dune::FieldVector<double, 2> end, double widthStart, double widthEnd, 
-                                    double depht, std::vector<double> height){ //TODO: make more efficient, better
-    typedef Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming > Grid;
-    using GridView = Grid::LeafGridView;
-    const GridView gridView = grid->leafGridView();
-
-    Dune::FieldVector<double, 2> flowVector = end - start;
-    Dune::FieldVector<double, 2> normalFlowVector = calculateNormal(flowVector);
-
-    if (widthEnd < 0) widthEnd = widthStart;
-
-    Dune::FieldVector<double, 2> start1 = start + (widthStart/2) * normalFlowVector;
-    Dune::FieldVector<double, 2> start2 = start - (widthStart/2) * normalFlowVector;
-    Dune::FieldVector<double, 2> end1 = end + (widthEnd/2) * normalFlowVector;
-    Dune::FieldVector<double, 2> end2 = end - (widthEnd/2) * normalFlowVector;
-
-    Dune::FieldVector<double, 2> b1 = end1 - start1;
-    Dune::FieldVector<double, 2> b2 = end2 - start2;
-
-    double minX = std::min({start1[0], start2[0], end1[0], end2[0]});
-    double maxX = std::max({start1[0], start2[0], end1[0], end2[0]});
-    double minY = std::min({start1[1], start2[1], end1[1], end2[1]});
-    double maxY = std::max({start1[1], start2[1], end1[1], end2[1]});
-   
-   std::vector<double> heights;
-   double count = 0;
-    
-    for(auto& v : vertices(gridView)){
-
-        auto cornerI = v.geometry().corner(0);
-        
-        if(cornerI[0] < minX) continue; //test if vertex is outside of desired range
-        else if (cornerI[0] > maxX)continue;
-        if(cornerI[1] < minY) continue;
-        else if (cornerI[1] > maxY) continue;
-
-        Dune::FieldVector<double, 2> vec1 = cornerI - start1;
-        Dune::FieldVector<double, 2> vec2 = cornerI - start2;
-        double cross1 = b1[0] * vec1[1] - b1[1] * vec1[0];
-        double cross2 = b2[0] * vec2[1] - b2[1] * vec2[0];
-    
-        
-        if(cross1 > 0) continue;
-        else if(cross2 < 0) continue;
-        heights.push_back(height[gridView.indexSet().index(v)]);
-        count ++;
-    }
-
-    double mean = accumulate(heights.begin(), heights.end(), 0)/count;
-    double standardDeviation = 0;
-    for(int i = 0; i < heights.size(); ++i) {
-        standardDeviation += pow(heights[i] - mean, 2);
-    }
-    standardDeviation = standardDeviation/heights.size();
-
-    for(auto& v : vertices(gridView)){
-
-        auto cornerI = v.geometry().corner(0);
-        
-        if(cornerI[0] < minX) continue; //test if vertex is outside of desired range
-        else if (cornerI[0] > maxX)continue;
-        if(cornerI[1] < minY) continue;
-        else if (cornerI[1] > maxY) continue;
-
-        Dune::FieldVector<double, 2> vec1 = cornerI - start1;
-        Dune::FieldVector<double, 2> vec2 = cornerI - start2;
-        double cross1 = b1[0] * vec1[1] - b1[1] * vec1[0];
-        double cross2 = b2[0] * vec2[1] - b2[1] * vec2[0];
-    
-        
-        if(cross1 > 0) continue;
-        else if(cross2 < 0) continue;
-        if (std::abs(height[gridView.indexSet().index(v)] - mean)>standardDeviation) height[gridView.indexSet().index(v)] = mean;
-        //height[gridView.indexSet().index(v)] = -5;
-    }
-    
-    return height;
-}
-

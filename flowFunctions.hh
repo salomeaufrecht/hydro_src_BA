@@ -17,9 +17,6 @@
 #include <array>
 
 
-constexpr int dim = 2; // dimension of grid
-
-
 /**
  * @brief Stores basic data for each flow fragment, including start and end points, 
  *        as well as optional parameters for width and depth.
@@ -30,8 +27,8 @@ constexpr int dim = 2; // dimension of grid
  */
 struct flowFragment
 {
-    Dune::FieldVector<double, dim> start; ///< Starting point of the flow fragment.
-    Dune::FieldVector<double, dim> end;   ///< Endpoint of the flow fragment.
+    Dune::FieldVector<double, 2> start; ///< Starting point of the flow fragment.
+    Dune::FieldVector<double, 2> end;   ///< Endpoint of the flow fragment.
     double widthStart;                    ///< Width of the flow at the starting point.
     double widthEnd = -1;                 ///< Width of the flow at the endpoint (default: -1 means same as start).
     double depht = -2;                    ///< Depth of the flow (default: -2 means no value).
@@ -45,10 +42,10 @@ struct flowFragment
  * recomputation of these properties during processing.
  */
 struct fragmentBoundaries{
-    Dune::FieldVector<double, dim> start1; ///< One endpoint of the flow fragment's first boundary.
-    Dune::FieldVector<double, dim> start2; ///< One endpoint of the flow fragment's second boundary.
-    Dune::FieldVector<double, dim> b1;     ///< Vector defining the first boundary.
-    Dune::FieldVector<double, dim> b2;     ///< Vector defining the second boundary.
+    Dune::FieldVector<double, 2> start1; ///< One endpoint of the flow fragment's first boundary.
+    Dune::FieldVector<double, 2> start2; ///< One endpoint of the flow fragment's second boundary.
+    Dune::FieldVector<double, 2> b1;     ///< Vector defining the first boundary.
+    Dune::FieldVector<double, 2> b2;     ///< Vector defining the second boundary.
     double minX;                           ///< Minimum x-coordinate of the bounding box.
     double maxX;                           ///< Maximum x-coordinate of the bounding box.
     double minY;                           ///< Minimum y-coordinate of the bounding box.
@@ -56,7 +53,7 @@ struct fragmentBoundaries{
     int direction = 0;                     ///< Direction of the fragment (0: any, 1: horizontal, 2: vertical, 3: diagonal).
     double minSize = 0.1;                  ///< Minimum size of the fragment for refinement purposes.
     double depht = 0;                      ///< Depth of the flow fragment.
-    Dune::FieldVector<double, dim> normal;  ///< The vector pointing away from the flow vector.
+    Dune::FieldVector<double, 2> normal;  ///< The vector pointing away from the flow vector.
 };
 
 /**
@@ -73,8 +70,8 @@ struct fragmentBoundaries{
  * @param gridSize The dimensions of the grid.
  * @return std::vector<double> The updated height values.
  */
-std::vector<double> applyFlowHeightFragments(const Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
-        std::vector<flowFragment> fragments, std::vector<double> height, RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, std::array<int, dim> gridSize);
+std::vector<double> applyFlowHeightFragments(const Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
+        std::vector<flowFragment> fragments, std::vector<double> height, RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, std::array<int, 2> gridSize);
 
 /**
  * @brief Applies height values to all vertices in the grid.
@@ -88,8 +85,8 @@ std::vector<double> applyFlowHeightFragments(const Dune::ALUGrid< dim, dim, Dune
  * @param cellSize The size of each cell in the grid.
  * @return std::vector<double> The updated height values.
  */
-std::vector<double> overallHeight(const Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
-                                RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, std::array<int, dim> gridSize);
+std::vector<double> overallHeight(const Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
+                                RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, std::array<int, 2> gridSize);
 
 /**
  * @brief Refines the grid to ensure accurate representation of flow fragments.
@@ -104,7 +101,7 @@ std::vector<double> overallHeight(const Dune::ALUGrid< dim, dim, Dune::simplex, 
  * @param cellSize The size of each grid cell (default: {1.0, 1.0}).
  * @param maxIterations The maximal amount of refinement iterations (default: 50).
  */
-void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
+void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
         std::vector<flowFragment> fragments, double minSizeFactor = 0.4, std::array<double, 2> cellSize = {1.0, 1.0}, int maxIterations=50);
 
 /**
@@ -120,10 +117,41 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simp
  * @param gridSize The dimensions of the grid.
  * @param minAcc The minimum accumulation value for flow detection (default: 50).
  * @param maxAccDiff The maximum accumulation difference for flow detection (default: 200).
+ * @param scaleDephtFactor The scaling factor to calculate flow depth from accumalation values(default: 400).
+ * @param scaleWidthFactor The scaling factor to calculate flow width from accumalation values(default: 5000).
+ * @param minWidth The minimum width of a flow fragment in worldcoordinates(default: 1.0).
  * @return std::vector<flowFragment> A vector of detected flow fragments.
  */
 std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster,
-                                             std::array<double, 2> cellSize, std::array<int, dim> gridSize, double minAcc = 50, double maxAccDiff=200);
+                                             std::array<double, 2> cellSize, std::array<int, 2> gridSize, double minAcc = 50, double maxAccDiff=200,
+                                             double scaleDephtFactor=400, double scaleWidthFactor=5000, double minWidth = 1.0);
+
+
+RasterDataSet<float> removeUpwardsRivers(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, RasterDataSet<float> elevation_raster,
+                            std::array<double, 2> cellSize, std::array<int, 2> gridSize, double minAcc = 50);
+
+/**
+ * @brief Detects rivers in an map, refines the grid to represent them accurately and adjusts the height values.
+ * 
+ * This function combines the detection of flow fragments, grid refinement, and height adjustment.
+ * 
+ * @param grid The grid where the refinement will be applied.
+ * @param cellSize The size of each grid cell.
+ * @param gridSize The dimensions of the grid.
+ * @param accumulation_raster The raster dataset containing accumulation values.
+ * @param direction_raster The raster dataset containing flow direction values.
+ * @param elevation_raster The raster dataset containing elevation values.
+ * @param minSizeFactor The minimum size factor for refinement (default: 0.4).
+ * @param minAcc The minimum accumulation value for flow detection (default: 50).
+ * @param maxAccDiff The maximum accumulation difference for flow detection (default: 200).
+ * @param scaleDephtFactor The scaling factor to calculate flow depth from accumulation values (default: 400).
+ * @param scaleWidthFactor The scaling factor to calculate flow width from accumulation values (default: 5000).
+ * @param maxIterations The maximal amount of refinement iterations (default: 50).
+ * @return std::vector<double> 
+ */
+std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, std::array<double, 2> cellSize, std::array<int, 2> gridSize,
+                                    RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, RasterDataSet<float> elevation_raster,
+                                    double minSizeFactor = 0.4, double minAcc = 50, double maxAccDiff = 200, double scaleDephtFactor = 400, double scaleWidthFactor = 5000, int maxIterations = 50);
 
 /**
  * @brief Adjusts height values for a specific flow fragment.
@@ -136,7 +164,7 @@ std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_rast
  * @param height A vector of height values for the grid vertices.
  * @return std::vector<double> The updated height values.
  */
-std::vector<double> adjustFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, flowFragment f,
+std::vector<double> adjustFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, flowFragment f,
                                              std::vector<double> height);
 
 /**
@@ -154,8 +182,8 @@ std::vector<double> adjustFlowHeightFragments(std::shared_ptr<Dune::ALUGrid< dim
  * @param height A vector of height values for the grid vertices.
  * @return std::vector<double> The updated height values.
  */
-std::vector<double> adjustFlowHeight (std::shared_ptr<Dune::ALUGrid< dim, dim, Dune::simplex, Dune::conforming>> grid, 
-                                    Dune::FieldVector<double, dim> start, Dune::FieldVector<double, dim> end, double widthStart, double widthEnd, 
+std::vector<double> adjustFlowHeight (std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
+                                    Dune::FieldVector<double, 2> start, Dune::FieldVector<double, 2> end, double widthStart, double widthEnd, 
                                     double depht, std::vector<double> height);
 
 #endif // FLOWFUNCTIONS_HH

@@ -84,57 +84,6 @@
 #include <dune/common/timer.hh>
 
 
-template<typename GV>
-class MyVTKFunction
-    : public Dune::VTKFunction<GV>
-{
-  typedef typename GV::Grid::ctype DF;
-  enum
-  {
-    n = GV::dimension
-  };
-  using Entity = typename GV::Grid::template Codim<0>::Entity;
-
-public:
-  MyVTKFunction(const GV& gv_, std::vector<double>& data_, std::string s_)
-      : gv(gv_), data(data_), s(s_)
-  {
-  }
-
-  virtual int ncomps() const override
-  {
-    return 1;
-  }
-
-  virtual double evaluate(int comp, const Entity &e, const Dune::FieldVector<DF, n> &local) const override
-  {
-    auto x = e.geometry().global(local);
-    double minnorm = 1e10;
-    int mincorner;
-    for (int i=0; i<e.geometry().corners(); i++)
-    {
-      auto xc = e.geometry().corner(i);
-      xc -= x;
-      auto norm = xc.two_norm();
-      if (norm<minnorm) { minnorm=norm; mincorner=i; }
-    }
-    return data[gv.indexSet().subIndex(e,mincorner,2)];
-  }
-
-  virtual std::string name() const override
-  {
-    return s;
-  }
-
-private:
-  const GV& gv;
-  std::vector<double>& data;
-  std::string s;
-};
-
-
-
-
 int main(int argc, char **argv)
 {
   try
@@ -168,13 +117,12 @@ int main(int argc, char **argv)
   
       double dx = std::abs(image.dLong());
       double dy = std::abs(image.dLat());
-      const int dim = 2;
-      std::array<double, dim> H;
+      std::array<double, 2> H;
       H[0] = 1; 
       H[1] = 1;
-      Dune::FieldVector<double, dim> L;
+      Dune::FieldVector<double, 2> L;
 
-      std::array<int, dim> N;
+      std::array<int, 2> N;
       std::vector<double> size;
       std::vector<double> runtime_detectFragments;
       std::vector<double> runtime_refineGrid;
@@ -193,6 +141,8 @@ int main(int argc, char **argv)
         accumulation_raster.paste(aimage);
         auto direction_raster = RasterDataSet<unsigned char>(99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
         direction_raster.paste(dimage);
+
+
 
         Dune::Timer timeDetectFragments;
         std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, H, N);

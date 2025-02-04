@@ -168,13 +168,12 @@ int main(int argc, char **argv)
     
         double dx = std::abs(image.dLong());
         double dy = std::abs(image.dLat());
-        const int dim = 2;
-        std::array<double, dim> H;
+        std::array<double, 2> H;
         H[0] = 1; 
         H[1] = 1;
-        Dune::FieldVector<double, dim> L;
+        Dune::FieldVector<double, 2> L;
 
-        std::array<int, dim> N;
+        std::array<int, 2> N;
         std::vector<std::array<double, 2>> runtime;
         for(int i = 5; i < 1001; i+=5){
             

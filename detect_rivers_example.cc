@@ -182,27 +182,26 @@ int main(int argc, char **argv)
       double dy = std::abs(image.dLat());
       //double ox = image.originLong();
       //double oy = image.originLat();
-      const int dim = 2;
-      std::array<int, dim> N;
+      std::array<int, 2> N;
       N[0] = 741; //1800
       N[1] = 741; //1200
-      //std::array<double, dim> H;
+      //std::array<double, 2> H;
       //H[0] = 5; 
       //H[1] = 5; 
-      //std::array<int, dim> N;
+      //std::array<int, 2> N;
       //N[0] = 6; //1800
       //N[1] = 6; //1200
-      std::array<double, dim> H;
+      std::array<double, 2> H;
       H[0] = 1; 
       H[1] = 1;
-      Dune::FieldVector<double, dim> L;
+      Dune::FieldVector<double, 2> L;
       L[0] = N[0] * H[0];
       L[1] = N[1] * H[1];
 
-      //typedef Dune::YaspGrid<dim> Grid;
+      //typedef Dune::YaspGrid<2> Grid;
       //typedef Grid::ctype DF;
       //typedef double RF;
-      //auto gridp = std::make_shared<Grid>(L, N, std::bitset<dim>(0ULL), 1);
+      //auto gridp = std::make_shared<Grid>(L, N, std::bitset<2>(0ULL), 1);
 
       // now make raster canvas in cell-centered mode
       auto elevation_raster = RasterDataSet<float>(99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
@@ -220,7 +219,7 @@ int main(int argc, char **argv)
       //typedef Grid::LeafGridView GV;
       //GV gv = gridp->leafGridView();
 //
-      //using FEM = Dune::PDELab::P0LocalFiniteElementMap<RF, RF, dim>;
+      //using FEM = Dune::PDELab::P0LocalFiniteElementMap<RF, RF, 2>;
       //using CON = Dune::PDELab::P0ParallelConstraints;
       //using VBE = Dune::PDELab::ISTL::VectorBackend<>;
       //using GFS = Dune::PDELab::GridFunctionSpace<GV, FEM, CON, VBE>;
@@ -228,7 +227,7 @@ int main(int argc, char **argv)
       //using ZDGF = Dune::PDELab::DiscreteGridFunction<GFS, Z>;
       //using VTKF = Dune::PDELab::VTKGridFunctionAdapter<ZDGF>;
 //
-      //FEM fem(Dune::GeometryTypes::cube(dim));
+      //FEM fem(Dune::GeometryTypes::cube(2));
       //CON con;
       //GFS gfs(gv, fem, con);
       //gfs.name("Vh");

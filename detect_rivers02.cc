@@ -1,12 +1,3 @@
-// -*- tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*-
-// vi: set et ts=4 sw=2 sts=2:
-
-/*************************************/
-/* This example solves surface flow in the vicinity of Heidelberg
-   with 30m resolution and constant rainfall. Uses structured mesh
-   and finite volume method.
- */
-/*************************************/
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -92,53 +83,7 @@
 
 #include "flowFunctions.hh"
 
-template<typename GV>
-class MyVTKFunction
-    : public Dune::VTKFunction<GV>
-{
-  typedef typename GV::Grid::ctype DF;
-  enum
-  {
-    n = GV::dimension
-  };
-  using Entity = typename GV::Grid::template Codim<0>::Entity;
 
-public:
-  MyVTKFunction(const GV& gv_, std::vector<double>& data_, std::string s_)
-      : gv(gv_), data(data_), s(s_)
-  {
-  }
-
-  virtual int ncomps() const override
-  {
-    return 1;
-  }
-
-  virtual double evaluate(int comp, const Entity &e, const Dune::FieldVector<DF, n> &local) const override
-  {
-    auto x = e.geometry().global(local);
-    double minnorm = 1e10;
-    int mincorner;
-    for (int i=0; i<e.geometry().corners(); i++)
-    {
-      auto xc = e.geometry().corner(i);
-      xc -= x;
-      auto norm = xc.two_norm();
-      if (norm<minnorm) { minnorm=norm; mincorner=i; }
-    }
-    return data[gv.indexSet().subIndex(e,mincorner,2)];
-  }
-
-  virtual std::string name() const override
-  {
-    return s;
-  }
-
-private:
-  const GV& gv;
-  std::vector<double>& data;
-  std::string s;
-};
 
 
 
@@ -170,21 +115,16 @@ int main(int argc, char **argv)
     if (true)
     {
       // read data files
-      // first tile
       GeoTIFFImage<GInt16> image("n00e090_con.tif", "", 1, 2);
       GeoTIFFImage<GUInt32> aimage("N00E090_acc.tif", "", 1, 2);
       GeoTIFFImage<GByte> dimage("n00e090_dir.tif", "", 1, 2);
-      // second tile
-      //GeoTIFFImage<GInt16> image2("n00e100_con.tif", "", 1, 2);
-      //GeoTIFFImage<GUInt32> aimage2("N00E100_acc.tif", "", 1, 2);
-      //GeoTIFFImage<GByte> dimage2("n00e100_dir.tif", "", 1, 2);
+
 
       // create YaspGrid 
       double dx = std::abs(image.dLong());
       double dy = std::abs(image.dLat());
       double ox = image.originLong();
       double oy = image.originLat();
-  
       std::array<int, 2> N;
       N[0] = 100; //1800
       N[1] = 100; //1200
@@ -208,11 +148,8 @@ int main(int argc, char **argv)
       auto accumulation_raster = RasterDataSet<float>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
       auto direction_raster    = RasterDataSet<unsigned char>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
       elevation_raster.paste(image);
-      //elevation.paste(image2);
       accumulation_raster.paste(aimage);
-      //accumulation_raster.paste(aimage2);
       direction_raster.paste(dimage);
-      //direction_raster.paste(dimage2);
 
       // write a grid file    
       typedef Grid::LeafGridView GV;
@@ -276,8 +213,7 @@ int main(int argc, char **argv)
 
 
 
-  elevation_raster = removeUpwardsRivers(accumulation_raster, direction_raster, elevation_raster, H, N);
-  std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
+  
         
     typedef Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming > Grid_;
     using GridView = Grid_::LeafGridView;
@@ -289,50 +225,26 @@ int main(int argc, char **argv)
     const Dune::FieldVector<double, 2> upper = {L[0] - 0.5 * H[0], L[1] - 0.5 * H[1]};
 
 
-  std::cout << "make grid" << std::endl;
-  std::shared_ptr<Grid_> grid = Dune::StructuredGridFactory<Grid_>::createSimplexGrid(lower, upper, n_);
-  std::cout << "grid done" << std::endl;
+    std::shared_ptr<Grid_> grid = Dune::StructuredGridFactory<Grid_>::createSimplexGrid(lower, upper, n_);
+    const GridView gridView = grid->leafGridView();
 
-  std::cout << "make gridView" << std::endl;
-  const GridView gridView = grid->leafGridView();
-  std::cout << "gridview done" << std::endl;
+    elevation_raster = removeUpwardsRivers(accumulation_raster, direction_raster, elevation_raster, H, N);
+    std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
 
-  std::cout << "refine grid" << std::endl;
-  refineGridwithFragments(grid, rivers, 0.5, H); 
-  std::cout << "refine grid done " << std::endl;
-  
-  std::cout << "set overall height" << std::endl;
-  std::vector<double> height = overallHeight(gridView, elevation_raster, H, N);
-  std::cout << "overall heigth done" << std::endl;
+    refineGridwithFragments(grid, rivers, 0.5, H); 
+    
+    std::vector<double> height = overallHeight(gridView, elevation_raster, H, N);
 
-  std::cout << "set river height grid" << std::endl;
-  height= applyFlowHeightFragments(gridView, rivers, height, elevation_raster, H, N);
-  std::cout << "river heigth done" << std::endl;
+    height= applyFlowHeightFragments(gridView, rivers, height, elevation_raster, H, N);
 
-
-
-    //for(auto& f : fragments){
-    //  int endI=round(f.start[0]/H[0]);
-    //  int endJ = round(f.start[1]/H[1]);
-    //  if(skip[endJ*N[0]+endI]==-1) continue;
-    //  //std::cout << "height" << std::endl;
-    //  height = adjustFlowHeightFragments(grid, f, height); 
-    //}
-     
-     //Write grid to file
-
-    int subsampling = 2;
-    //Dune::SubsamplingVTKWriter<GridView> vtkWriter(gridView, Dune::refinementIntervals(subsampling));
-    //auto f = std::make_shared<MyVTKFunction<GridView>>(gridView,height,"height");
-    //vtkWriter.addCellData(f);
     Dune::VTKWriter<GridView> vtkWriter(gridView);
     vtkWriter.addVertexData(height, "height");
-   
+    
     vtkWriter.write("nakhon_rivers");
 
 
-    }
-      return 0;
+  }
+    return 0;
   }
   catch (Dune::Exception &e)
   {

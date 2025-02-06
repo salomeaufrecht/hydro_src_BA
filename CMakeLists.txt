@@ -90,25 +90,30 @@
 #target_link_libraries(test06 PUBLIC GDAL::GDAL)
 #target_link_libraries(test06 PUBLIC NetCDF::NetCDF)
 
-add_executable("detect_rivers01" detect_rivers01.cc flowFunctions.cc flowFunctions.hh)
-target_link_dune_default_libraries(detect_rivers01)
-target_link_libraries(detect_rivers01 PUBLIC GDAL::GDAL)
-target_link_libraries(detect_rivers01 PUBLIC NetCDF::NetCDF)
+#add_executable("detect_rivers01" detect_rivers01.cc flowFunctions.cc flowFunctions.hh)
+#target_link_dune_default_libraries(detect_rivers01)
+#target_link_libraries(detect_rivers01 PUBLIC GDAL::GDAL)
+#target_link_libraries(detect_rivers01 PUBLIC NetCDF::NetCDF)
 
 add_executable("detect_rivers02" detect_rivers02.cc flowFunctions.cc flowFunctions.hh)
 target_link_dune_default_libraries(detect_rivers02)
 target_link_libraries(detect_rivers02 PUBLIC GDAL::GDAL)
 target_link_libraries(detect_rivers02 PUBLIC NetCDF::NetCDF)
 
-add_executable("detect_rivers_example" detect_rivers_example.cc flowFunctions.cc flowFunctions.hh)
-target_link_dune_default_libraries(detect_rivers_example)
-target_link_libraries(detect_rivers_example PUBLIC GDAL::GDAL)
-target_link_libraries(detect_rivers_example PUBLIC NetCDF::NetCDF)
+#add_executable("detect_rivers_example" detect_rivers_example.cc flowFunctions.cc flowFunctions.hh)
+#target_link_dune_default_libraries(detect_rivers_example)
+#target_link_libraries(detect_rivers_example PUBLIC GDAL::GDAL)
+#target_link_libraries(detect_rivers_example PUBLIC NetCDF::NetCDF)
 
 add_executable("detectRivers_oneFunction" detectRivers_oneFunction.cc flowFunctions.cc flowFunctions.hh)
 target_link_dune_default_libraries(detectRivers_oneFunction)
 target_link_libraries(detectRivers_oneFunction PUBLIC GDAL::GDAL)
 target_link_libraries(detectRivers_oneFunction PUBLIC NetCDF::NetCDF)
+
+add_executable("detectRivers_example_ausarbeitung" detectRivers_example_ausarbeitung.cc flowFunctions.cc flowFunctions.hh)
+target_link_dune_default_libraries(detectRivers_example_ausarbeitung)
+target_link_libraries(detectRivers_example_ausarbeitung PUBLIC GDAL::GDAL)
+target_link_libraries(detectRivers_example_ausarbeitung PUBLIC NetCDF::NetCDF)
 
 #add_executable("explain_refinement" explain_refinement.cc flowFunctions.cc flowFunctions.hh)
 #target_link_dune_default_libraries(explain_refinement)
@@ -176,8 +181,8 @@ target_link_libraries(detectRivers_oneFunction PUBLIC NetCDF::NetCDF)
 #
 dune_symlink_to_source_files(FILES fourthexample.ini thirdexample.ini secondexample.ini firstexample.ini readtiff.ini nakhon.ini bw90mpre.ini stok.ini coupledexample.ini stok_long_term.ini VCFV_example.ini)
 #
-add_executable("dune-hydro" dune-hydro.cc)
-target_link_dune_default_libraries(dune-hydro)
-target_link_libraries(dune-hydro PUBLIC ${GDAL_LIBRARIES})
-target_include_directories(dune-hydro PUBLIC ${GDAL_INCLUDE_DIRS})
+#add_executable("dune-hydro" dune-hydro.cc)
+#target_link_dune_default_libraries(dune-hydro)
+#target_link_libraries(dune-hydro PUBLIC ${GDAL_LIBRARIES})
+#target_include_directories(dune-hydro PUBLIC ${GDAL_INCLUDE_DIRS})
 #

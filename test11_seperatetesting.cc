@@ -38,7 +38,8 @@ int main(int argc, char *argv[])
     std::shared_ptr<Grid> grid = Dune::StructuredGridFactory<Grid>::createSimplexGrid(lower, upper, n);
     const GridView gridView = grid->leafGridView();
 
-    flowFragment f1 = {{0.5, 0}, {0.5, 1}, 0.3};
+    flowFragment f1 = {{0.5, 0}, {0.5, 1}, 0.5};
+    //flowFragment f1 = {{0.5, 0}, {0.5, 1}, 0.5};
     flowWithFragments(grid, f1);
 
     std::vector<double> height(gridView.indexSet().size(2));

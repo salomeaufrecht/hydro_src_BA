@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     std::shared_ptr<Grid> grid01 = StructuredGridFactory<Grid>::createSimplexGrid(lower, upper, n);
 
     const GridView gridView01 = grid01->leafGridView();
-    flowFragment f01 = {Dune::FieldVector<double, 2>{0, 0.5}, Dune::FieldVector<double, 2>{1, 0.5}, 0.3};
+    flowFragment f01 = {Dune::FieldVector<double, 2>{0, 0.5}, Dune::FieldVector<double, 2>{1, 0.5}, 0.5};
     std::vector<flowFragment> fragments01 = {f01};
 
 

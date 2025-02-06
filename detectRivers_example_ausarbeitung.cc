@@ -119,19 +119,19 @@ int main(int argc, char **argv)
         double dy = std::abs(image.dLat());
 
         std::array<int, 2> N;
-        N[0] = 100; //1800
-        N[1] = 100; //1200
+        N[0] = 8;
+        N[1] = 8;
         std::array<double, 2> H;
-        H[0] = 2; 
-        H[1] = 2; 
+        H[0] = 90; 
+        H[1] = 90; 
         Dune::FieldVector<double, 2> L;
         L[0] = N[0] * H[0];
         L[1] = N[1] * H[1];
 
 
-        auto elevation_raster    = RasterDataSet<float>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
-        auto accumulation_raster = RasterDataSet<float>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
-        auto direction_raster    = RasterDataSet<unsigned char>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+        auto elevation_raster    = RasterDataSet<float>(99.21 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
+        auto accumulation_raster = RasterDataSet<float>(99.21 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+        auto direction_raster    = RasterDataSet<unsigned char>(99.21 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
         elevation_raster.paste(image);
         accumulation_raster.paste(aimage);
         direction_raster.paste(dimage);
@@ -145,16 +145,23 @@ int main(int argc, char **argv)
         const Dune::FieldVector<double, 2> upper = {L[0] - 0.5 * H[0], L[1] - 0.5 * H[1]};
 
         std::shared_ptr<Grid> grid = Dune::StructuredGridFactory<Grid>::createSimplexGrid(lower, upper, n);
+        GridView gridView = grid->leafGridView();
 
         // compute rivers and add them to the map
-        std::vector<double> height = addRiversToMap(grid, H, N, accumulation_raster, direction_raster, elevation_raster);
 
-        GridView gridView = grid->leafGridView();
+        std::array<double, 2> cellSize = calcRealCellSize(H, N);
+        elevation_raster = removeUpwardsRivers(accumulation_raster, direction_raster, elevation_raster, N);
+        std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
+
+        refineGridwithFragments(grid, rivers, 0.5, H); 
+        std::vector<double> height = overallHeight(gridView, elevation_raster, H, N);
+        height= applyFlowHeightFragments(gridView, rivers, height, elevation_raster, H, N);
+
 
         // write result to file
         Dune::VTKWriter<GridView> vtkWriter(gridView);
         vtkWriter.addVertexData(height, "height");
-        vtkWriter.write("addRiversToMap");
+        vtkWriter.write("mapWithRefinedRivers_ex");
 
     }
       return 0;

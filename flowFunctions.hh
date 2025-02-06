@@ -100,9 +100,10 @@ std::vector<double> overallHeight(const Dune::ALUGrid< 2, 2, Dune::simplex, Dune
  * @param minSizeFactor The minimum size factor for refinement, relative to fragment width (default: 0.4).
  * @param cellSize The size of each grid cell (default: {1.0, 1.0}).
  * @param maxIterations The maximal amount of refinement iterations (default: 50).
+ * @param minMinSize The minimum for minSize in world coordinates (default: 0.2).
  */
 void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
-        std::vector<flowFragment> fragments, double minSizeFactor = 0.4, std::array<double, 2> cellSize = {1.0, 1.0}, int maxIterations=50);
+        std::vector<flowFragment> fragments, double minSizeFactor = 0.4, std::array<double, 2> cellSize = {1.0, 1.0}, int maxIterations=50, double minMinSize=0.2);
 
 /**
  * @brief Detects flow fragments based on accumulation and direction raster data.
@@ -117,18 +118,18 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
  * @param gridSize The dimensions of the grid.
  * @param minAcc The minimum accumulation value for flow detection (default: 50).
  * @param maxAccDiff The maximum accumulation difference for flow detection (default: 200).
- * @param scaleDephtFactor The scaling factor to calculate flow depth from accumalation values(default: 400).
- * @param scaleWidthFactor The scaling factor to calculate flow width from accumalation values(default: 5000).
+ * @param scaleDephtFactor The scaling factor to calculate flow depth from accumalation values(default: 5000).
+ * @param scaleWidthFactor The scaling factor to calculate flow width from accumalation values(default: 500).
  * @param minWidth The minimum width of a flow fragment in worldcoordinates(default: 1.0).
  * @return std::vector<flowFragment> A vector of detected flow fragments.
  */
 std::vector<flowFragment> detectFragments(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster,
                                              std::array<double, 2> cellSize, std::array<int, 2> gridSize, double minAcc = 50, double maxAccDiff=200,
-                                             double scaleDephtFactor=400, double scaleWidthFactor=5000, double minWidth = 1.0);
+                                             double scaleDephtFactor=3000, double scaleWidthFactor=500, double minWidth = 1.0);
 
 
 RasterDataSet<float> removeUpwardsRivers(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, RasterDataSet<float> elevation_raster,
-                            std::array<double, 2> cellSize, std::array<int, 2> gridSize, double minAcc = 50);
+                            std::array<int, 2> gridSize, double minAcc = 50);
 
 /**
  * @brief Detects rivers in an map, refines the grid to represent them accurately and adjusts the height values.
@@ -148,13 +149,22 @@ RasterDataSet<float> removeUpwardsRivers(RasterDataSet<float> accumulation_raste
  * @param scaleWidthFactor The scaling factor to calculate flow width from accumulation values (default: 5000).
  * @param maxIterations The maximal amount of refinement iterations (default: 50).
  * @param minWidth The minimum width of a flow fragment in world coordinates (default: 1.0).
+ * @param minMinSize The minimum for minSize in world coordinates (default: 0.2).
  * @return std::vector<double> 
  */
 std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, std::array<double, 2> cellSize, std::array<int, 2> gridSize,
                                     RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, RasterDataSet<float> elevation_raster,
                                     double minSizeFactor = 0.4, double minAcc = 50, double maxAccDiff = 200, double scaleDephtFactor = 400, 
-                                    double scaleWidthFactor = 5000, int maxIterations = 50, double minWidth = 1.0);
+                                    double scaleWidthFactor = 5000, int maxIterations = 50, double minWidth = 1.0, double minMinSize = 0.2);
 
 
+/**
+ * @brief Calculates the real cell size based on the grid size and cell size.
+ * 
+ * @param cellSize The selected size of each grid cell.
+ * @param gridSize The dimensions of the grid.
+ * @return std::array<double, 2> The actual size of each grid cell.
+ */
+std::array<double, 2> calcRealCellSize(std::array<double, 2> cellSize, std::array<int, 2> gridSize);
 
 #endif // FLOWFUNCTIONS_HH

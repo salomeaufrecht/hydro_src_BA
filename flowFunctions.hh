@@ -167,4 +167,12 @@ std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::si
  */
 std::array<double, 2> calcRealCellSize(std::array<double, 2> cellSize, std::array<int, 2> gridSize);
 
+
+void refineGridwithFragmentsBoundingBox(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
+        std::vector<std::vector<flowFragment>> fragments,std::array<int, 2> gridSize, double minSizeFactor=0.4, std::array<double, 2> cellSize = {1.0,1.0}, int maxIterations=60, double minMinSize=0.2);
+    
+std::vector<std::vector<flowFragment>> detectFragmentsBoundingBox(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, 
+                            std::array<double, 2> cellSize, std::array<int, 2> gridSize, double minAcc=50, double maxAccDiff=200, double scaleDephtFactor=3000, 
+                            double scaleWidthFactor=500, double minWidth=1.0);
+
 #endif // FLOWFUNCTIONS_HH

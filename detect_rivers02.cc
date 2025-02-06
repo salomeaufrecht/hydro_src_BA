@@ -229,13 +229,14 @@ int main(int argc, char **argv)
     const GridView gridView = grid->leafGridView();
 
     elevation_raster = removeUpwardsRivers(accumulation_raster, direction_raster, elevation_raster, N);
-    std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
-
-    refineGridwithFragments(grid, rivers, 0.4, H, 50); 
+    //std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
+    //refineGridwithFragments(grid, rivers, 0.4, H, 50); 
+    std::vector<std::vector<flowFragment>> fragments = detectFragmentsBoundingBox(accumulation_raster, direction_raster, H, N);
+    refineGridwithFragmentsBoundingBox(grid, fragments, N, 0.4, H, 50, 0.2);
     
     std::vector<double> height = overallHeight(gridView, elevation_raster, H, N);
 
-    height= applyFlowHeightFragments(gridView, rivers, height, elevation_raster, H, N);
+    //height= applyFlowHeightFragments(gridView, rivers, height, elevation_raster, H, N);
 
     Dune::VTKWriter<GridView> vtkWriter(gridView);
     vtkWriter.addVertexData(height, "height");

@@ -145,11 +145,12 @@ int main(int argc, char **argv)
         const Dune::FieldVector<double, 2> upper = {L[0] - 0.5 * H[0], L[1] - 0.5 * H[1]};
 
         std::shared_ptr<Grid> grid = Dune::StructuredGridFactory<Grid>::createSimplexGrid(lower, upper, n);
+        GridView gridView = grid->leafGridView();
 
         // compute rivers and add them to the map
-        std::vector<double> height = addRiversToMap(grid, H, N, accumulation_raster, direction_raster, elevation_raster);
+        std::vector<double> height = addRiversToMap(grid, gridView, H, N, accumulation_raster, direction_raster, elevation_raster);
 
-        GridView gridView = grid->leafGridView();
+        
 
         // write result to file
         Dune::VTKWriter<GridView> vtkWriter(gridView);

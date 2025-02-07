@@ -152,10 +152,12 @@ RasterDataSet<float> removeUpwardsRivers(RasterDataSet<float> accumulation_raste
  * @param minMinSize The minimum for minSize in world coordinates (default: 0.2).
  * @return std::vector<double> 
  */
-std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, std::array<double, 2> cellSize, std::array<int, 2> gridSize,
+std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
+                                    const Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
+                                    std::array<double, 2> cellSize, std::array<int, 2> gridSize,
                                     RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, RasterDataSet<float> elevation_raster,
-                                    double minSizeFactor = 0.4, double minAcc = 50, double maxAccDiff = 200, double scaleDephtFactor = 400, 
-                                    double scaleWidthFactor = 5000, int maxIterations = 50, double minWidth = 1.0, double minMinSize = 0.2);
+                                    double minSizeFactor = 0.4, double minAcc = 50, double maxAccDiff = 200, double scaleDephtFactor = 3000, 
+                                    double scaleWidthFactor = 500, int maxIterations = 50, double minWidth = 1.0, double minMinSize = 0.2);
 
 
 /**
@@ -167,6 +169,9 @@ std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::si
  */
 std::array<double, 2> calcRealCellSize(std::array<double, 2> cellSize, std::array<int, 2> gridSize);
 
+std::vector<double> applyFlowHeightFragmentsBoundingBox(const Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
+       std::vector<std::vector<flowFragment>> fragments, std::vector<double> height, RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, 
+        std::array<int, 2> gridSize);
 
 void refineGridwithFragmentsBoundingBox(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
         std::vector<std::vector<flowFragment>> fragments,std::array<int, 2> gridSize, double minSizeFactor=0.4, std::array<double, 2> cellSize = {1.0,1.0}, int maxIterations=60, double minMinSize=0.2);

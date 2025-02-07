@@ -360,6 +360,120 @@ std::vector<double> applyFlowHeightFragments(const Dune::ALUGrid< 2, 2, Dune::si
     return height;
 }
 
+
+std::vector<double> applyFlowHeightFragmentsBoundingBox(const Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
+       std::vector<std::vector<flowFragment>> fragments, std::vector<double> height, RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, 
+        std::array<int, 2> gridSize){
+
+    std::vector<double> originalHeight = height;
+
+    std::array<double, 2> realCellSize = calcRealCellSize(cellSize, gridSize);
+
+    Dune::FieldVector<double, 2> bisectors = convertToGlobalCoordinates({std::floor(gridSize[0]/2), std::floor(gridSize[0]/2)}, cellSize, realCellSize);
+    double xBisector = bisectors[0];
+    double yBisector = bisectors[1];
+
+    std::vector<fragmentBoundaries> fragmentsBoundaries00 = calcFragmentBoundaries(fragments[0]);
+    std::vector<fragmentBoundaries> fragmentsBoundaries01 = calcFragmentBoundaries(fragments[1]);
+    std::vector<fragmentBoundaries> fragmentsBoundaries10 = calcFragmentBoundaries(fragments[2]);
+    std::vector<fragmentBoundaries> fragmentsBoundaries11 = calcFragmentBoundaries(fragments[3]);
+
+    std::vector<std::vector<fragmentBoundaries>> fragmentsBoundaries = {fragmentsBoundaries00, fragmentsBoundaries01, fragmentsBoundaries10, fragmentsBoundaries11};
+
+
+    
+    for(auto& v : vertices(gridView)){ //check for each vertex if its part of a fragment
+        auto corner = v.geometry().corner(0); //avoid recomputation
+
+        int selectFB = 0;
+        if(corner[0] >= xBisector) selectFB += 2;
+        if(corner[1] >= yBisector) selectFB += 1;
+        
+ 
+        for (const auto& fB : fragmentsBoundaries[selectFB]){
+
+            if (!isPointInFlow(corner, fB)) continue;
+
+            if(fB.direction == 3){ //diagonal //following not essential to work but smoothens results
+                Dune::FieldVector<double, 2> refCorner = convertToRasterCoordinates(corner, cellSize, realCellSize);
+
+                std::vector<int> neighbors= calcNeighbors(refCorner, gridSize);
+                int neighborX1 = neighbors[0];
+                int neighborX2 = neighbors[1];
+                int neighborY1 = neighbors[2];
+                int neighborY2 = neighbors[3];
+
+
+                if(neighborX2==-2 && neighborY2 == -2){ // vertex in cell (of raster data)
+                    
+                    if(std::abs(fB.b1[0]-fB.b1[1])<1e-8){ //flow from bottom left to top right or vice versa
+                        Dune::FieldVector<double, 2> bottomLeftCellCorner = convertToGlobalCoordinates({neighborX1, neighborY1}, cellSize, realCellSize);
+                        
+                        if(!isPointInFlow(bottomLeftCellCorner, fB)){ //flow through corner of cell (bottom left corner not in flow)
+                            double x_inCell = refCorner[0] - neighborX1;
+                            double y_inCell = refCorner[1] - neighborY1;
+
+                            int x1 = neighborX1;
+                            int x2 = neighborX1;
+                            int y1 = neighborY1;
+                            int y2 = neighborY1;
+                            if(x_inCell < y_inCell){ //flow through top left corner
+                                x1 = neighborX1 - 1;
+                                y2 = neighborY1 + 1;
+                            } else { //flow through bottom right corner
+                                x1 = neighborX1 + 1;
+                                y2 = neighborY1 - 1;
+                            }
+                            x1 = std::clamp(x1, 0, gridSize[0]-1);
+                            y2 = std::clamp(y2, 0, gridSize[1]-1);
+                            height[gridView.indexSet().index(v)] = std::min(double(originalHeight[gridView.indexSet().index(v)]), 
+                                                                                double((elevation_raster(x1, y1)+elevation_raster(x2, y2))/2)) - fB.depht;
+                            continue;
+                        }
+                    }
+                    else{//flow from bottom right to top left or vice versa
+                        Dune::FieldVector<double, 2> bottomRightCellCorner = convertToGlobalCoordinates({neighborX1+1, neighborY1}, cellSize, realCellSize);
+
+                        if(!isPointInFlow(bottomRightCellCorner, fB)){ //flow through corner of cell (bottom right corner not in flow)
+                            double x_inCell = refCorner[0]- neighborX1;
+                            double y_inCell = refCorner[1]- neighborY1;
+
+                            int x1 = neighborX1;
+                            int x2 = neighborX1;
+                            int y1 = neighborY1;
+                            int y2 = neighborY1;
+                            if(x_inCell + y_inCell > 1){ //flow through top right corner
+                                x1 = neighborX1 + 1;
+                                y2 = neighborY1 + 1;
+                            } else { //flow through bottom left corner
+                                x1 = neighborX1 - 1;
+                                y2 = neighborY1 - 1;
+                            }
+                            x1 = std::clamp(x1, 0, gridSize[0]-1);
+                            y2 = std::clamp(y2, 0, gridSize[1]-1);
+                            height[gridView.indexSet().index(v)] = std::min(double(originalHeight[gridView.indexSet().index(v)]), 
+                                                                                double((elevation_raster(x1, y1)+elevation_raster(x2, y2))/2)) - fB.depht;
+                            continue;
+                        }
+                    }         
+                } else if(neighborX2==-2 && neighborY2 != -2){ //vertex between two cells in y direction
+                    height[gridView.indexSet().index(v)] = std::min(elevation_raster(neighborX1, neighborY1), elevation_raster(neighborX1, neighborY2)) - fB.depht;
+                    continue;
+                } else if(neighborX2 != -2 && neighborY2 == -2){ //vertex between two cells in x direction
+                    height[gridView.indexSet().index(v)] = std::min(elevation_raster(neighborX1, neighborY1), elevation_raster(neighborX2, neighborY1)) - fB.depht;
+                    continue;
+                } else{ //vertex between four cells
+                    height[gridView.indexSet().index(v)] = std::min((elevation_raster(neighborX1, neighborY1) + elevation_raster(neighborX2, neighborY2))/2, 
+                        	                                                (elevation_raster(neighborX2, neighborY1) + elevation_raster(neighborX1, neighborY2))/2) - fB.depht;
+                    continue;
+                }
+            }   
+            height[gridView.indexSet().index(v)] = std::min(originalHeight[gridView.indexSet().index(v)] - fB.depht, height[gridView.indexSet().index(v)]);
+        }
+    }
+    return height;
+}
+
 void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
         std::vector<flowFragment> fragments, double minSizeFactor, std::array<double, 2> cellSize, int maxIterations, double minMinSize){
     
@@ -545,10 +659,6 @@ void refineGridwithFragmentsBoundingBox(std::shared_ptr<Dune::ALUGrid< 2, 2, Dun
     double xBisector = bisectors[0];
     double yBisector = bisectors[1];
 
-    std::cout << "gridView.size(0): " << gridView.size(0) << " gridView.size(1): " << gridView.size(1) << std::endl;
-
-    std::cout << xBisector << " " << yBisector << std::endl;
-
     std::vector<fragmentBoundaries> fragmentsBoundaries00 = calcFragmentBoundaries(fragments[0], minSizeFactor);
     std::vector<fragmentBoundaries> fragmentsBoundaries01 = calcFragmentBoundaries(fragments[1], minSizeFactor);
     std::vector<fragmentBoundaries> fragmentsBoundaries10 = calcFragmentBoundaries(fragments[2], minSizeFactor);
@@ -594,9 +704,6 @@ void refineGridwithFragmentsBoundingBox(std::shared_ptr<Dune::ALUGrid< 2, 2, Dun
                 }
                 break;
             }
-
-            //std::cout << corners[0] << " " << corners[1] << " " << corners[2] << std::endl;
-            //std::cout << selectFB << std::endl << std::endl;
 
             bool marked = false;
 
@@ -951,7 +1058,6 @@ std::vector<std::vector<flowFragment>> detectFragmentsBoundingBox(RasterDataSet<
                 double width = volume/(scaleWidthFactor*(realCellSize[0]+realCellSize[1])/2); //width of flow in cells
                 double depht = volume/(scaleDephtFactor*(realCellSize[0]+realCellSize[1])/2);
 
-                width = 0.5;
 
                 width = std::min(1.0, width); //max width realCellSize
                 depht = std::min(15/((realCellSize[0]+realCellSize[1])/2), depht); //max depht 15m
@@ -969,7 +1075,8 @@ std::vector<std::vector<flowFragment>> detectFragmentsBoundingBox(RasterDataSet<
                 Dune::FieldVector<double, 2>shift = {0.5, 0.5}; //fragments should start in middle of cell
                 start = convertToGlobalCoordinates(start+shift, cellSize, realCellSize);
                 end = convertToGlobalCoordinates(end+shift, cellSize, realCellSize);
-
+                
+                width = 0.5;
                 
                 flowFragment f = {start, end, width * realCellSize[0]}; 
                 if(dir==4 || dir==64) f.widthStart= width * realCellSize[1];
@@ -1067,22 +1174,31 @@ RasterDataSet<float> removeUpwardsRivers(RasterDataSet<float> accumulation_raste
 }
 
 
-std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, std::array<double, 2> cellSize, std::array<int, 2> gridSize,
+std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
+                                    const Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>::LeafGridView& gridView,
+                                    std::array<double, 2> cellSize, std::array<int, 2> gridSize,
                                     RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, RasterDataSet<float> elevation_raster,
                                     double minSizeFactor, double minAcc, double maxAccDiff, double scaleDephtFactor, double scaleWidthFactor, int maxIterations, 
                                     double minWidth, double minMinSize){
-    typedef Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming > Grid;
-    using GridView = Grid::LeafGridView;
-    const GridView gridView = grid->leafGridView();
+    //typedef Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming > Grid;
+    //using GridView = Grid::LeafGridView;
+    //const GridView gridView = grid->leafGridView();
 
 
     elevation_raster = removeUpwardsRivers(accumulation_raster, direction_raster, elevation_raster, gridSize, minAcc);
-    std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, cellSize, gridSize, minAcc, maxAccDiff, scaleDephtFactor, scaleWidthFactor, minWidth);
+    //std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, cellSize, gridSize, minAcc, maxAccDiff, scaleDephtFactor, scaleWidthFactor, minWidth);
 
-    refineGridwithFragments(grid, rivers, minSizeFactor, cellSize, maxIterations);
+    //refineGridwithFragments(grid, rivers, minSizeFactor, cellSize, maxIterations);
 
+    //std::vector<double> height = overallHeight(gridView, elevation_raster, cellSize, gridSize);
+    //height = applyFlowHeightFragments(gridView, rivers, height, elevation_raster, cellSize, gridSize);
+
+    std::vector<std::vector<flowFragment>> fragments = detectFragmentsBoundingBox(accumulation_raster, direction_raster, cellSize, gridSize, minAcc, maxAccDiff, scaleDephtFactor, scaleWidthFactor, minWidth);
+    refineGridwithFragmentsBoundingBox(grid, fragments, gridSize, minSizeFactor, cellSize, maxIterations);
+    
     std::vector<double> height = overallHeight(gridView, elevation_raster, cellSize, gridSize);
-    height = applyFlowHeightFragments(gridView, rivers, height, elevation_raster, cellSize, gridSize);
+
+    height= applyFlowHeightFragmentsBoundingBox(gridView, fragments, height, elevation_raster,cellSize, gridSize);
     return height;
 }
 

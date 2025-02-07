@@ -151,11 +151,18 @@ int main(int argc, char **argv)
 
         std::array<double, 2> cellSize = calcRealCellSize(H, N);
         elevation_raster = removeUpwardsRivers(accumulation_raster, direction_raster, elevation_raster, N);
-        std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
+        //std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
 
-        refineGridwithFragments(grid, rivers, 0.5, H); 
+        std::vector<std::vector<flowFragment>> fragments = detectFragmentsBoundingBox(accumulation_raster, direction_raster, H, N);
+        refineGridwithFragmentsBoundingBox(grid, fragments, N, 0.5, H);
+    
         std::vector<double> height = overallHeight(gridView, elevation_raster, H, N);
-        height= applyFlowHeightFragments(gridView, rivers, height, elevation_raster, H, N);
+
+        height= applyFlowHeightFragmentsBoundingBox(gridView, fragments, height, elevation_raster, H, N);
+
+        //refineGridwithFragments(grid, rivers, 0.5, H); 
+        //std::vector<double> height = overallHeight(gridView, elevation_raster, H, N);
+        //height= applyFlowHeightFragments(gridView, rivers, height, elevation_raster, H, N);
 
 
         // write result to file

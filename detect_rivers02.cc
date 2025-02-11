@@ -126,11 +126,11 @@ int main(int argc, char **argv)
       double ox = image.originLong();
       double oy = image.originLat();
       std::array<int, 2> N;
-      N[0] = 100; //1800
-      N[1] = 100; //1200
+      N[0] = 500; //1800
+      N[1] = 500; //1200
       std::array<double, 2> H;
-      H[0] = 2; 
-      H[1] = 2; 
+      H[0] = 90; 
+      H[1] = 90; 
       Dune::FieldVector<double, 2> L;
       L[0] = N[0] * H[0];
       L[1] = N[1] * H[1];
@@ -231,10 +231,17 @@ int main(int argc, char **argv)
     std::shared_ptr<Grid_> grid = Dune::StructuredGridFactory<Grid_>::createSimplexGrid(lower, upper, n_);
     const GridView gridView = grid->leafGridView();
 
+    int elem_counter = 0;
+    for (const auto &element : elements(gridView))
+    {
+      elem_counter++;
+    }
+
     elevation_raster = removeUpwardsRivers(accumulation_raster, direction_raster, elevation_raster, N);
     //std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
     //refineGridwithFragments(grid, rivers, 0.4, H, 50); 
     std::vector<std::vector<flowFragment>> fragments = detectFragments(accumulation_raster, direction_raster, H, N);
+    std::cout << "test" << std::endl;
     refineGridwithFragments(grid, fragments, N, 0.4, H, 50, 0.2);
     std::vector<double> height = overallHeight(gridView, elevation_raster, H, N);
     height= applyFlowHeightFragments(gridView, fragments, height, elevation_raster, H, N);
@@ -244,9 +251,17 @@ int main(int argc, char **argv)
     
     vtkWriter.write("nakhon_rivers");
 
-
+   int elem_counter_refined = 0;
+    for (const auto &element : elements(gridView))
+    {
+      elem_counter_refined++;
+    }
+    std::cout << "Number of elements before refinement: " << elem_counter << std::endl;
+    std::cout << "Number of elements after refinement: " << elem_counter_refined << std::endl;
   }
-    return 0;
+    // close GDAL
+  GDALDestroyDriverManager();
+  return 0;
   }
   catch (Dune::Exception &e)
   {

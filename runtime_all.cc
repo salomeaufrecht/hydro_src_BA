@@ -142,17 +142,10 @@ int main(int argc, char **argv)
         auto direction_raster = RasterDataSet<unsigned char>(99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
         direction_raster.paste(dimage);
 
-
-
-        Dune::Timer timeDetectFragments;
-        std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
-        double elapsedTimeDetectFragments = timeDetectFragments.stop();
-
+        // create grid
         typedef Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming > Grid_;
         using GridView = Grid_::LeafGridView;
-
-
-          // create grid
+          
         const std::array<unsigned, 2> n_ = {N[0], N[1]};
         const Dune::FieldVector<double, 2> lower = {0.5 * H[0], 0.5 * H[1]};
         const Dune::FieldVector<double, 2> upper = {L[0] - 0.5 * H[0], L[1] - 0.5 * H[1]};
@@ -161,8 +154,14 @@ int main(int argc, char **argv)
 
 
 
+        Dune::Timer timeDetectFragments;
+        std::vector<std::vector<flowFragment>> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
+        double elapsedTimeDetectFragments = timeDetectFragments.stop();
+
+
+
         Dune::Timer timerRefine;  // Timer starten
-        refineGridwithFragments(grid, rivers, 0.5, H); 
+        refineGridwithFragments(grid, rivers,N, 0.5, H); 
         double elapsedTimeRefine = timerRefine.stop();  // Stoppe den Timer und bekomme die Zeit in Sekunden
         
         Dune::Timer timerOverallHeight;  // Timer starten

@@ -106,7 +106,7 @@ std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::si
                                     std::array<double, 2> cellSize, std::array<int, 2> gridSize,
                                     RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, RasterDataSet<float> elevation_raster,
                                     double minSizeFactor = 0.4, double minAcc = 50, double maxAccDiff = 200, double scaleDephtFactor = 3000, 
-                                    double scaleWidthFactor = 500, int maxIterations = 50, double minWidth = 1.0, double minMinSize = 0.2);
+                                    double scaleWidthFactor = 100, int maxIterations = 50, double minWidth = 1.0, double minMinSize = 0.2);
 
 
 /**
@@ -173,7 +173,9 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
  * @return std::vector<flowFragment> A vector of detected flow fragments.
  */
 std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, 
-                            std::array<double, 2> cellSize, std::array<int, 2> gridSize, double minAcc=50, double maxAccDiff=200, double scaleDephtFactor=3000, 
-                            double scaleWidthFactor=500, double minWidth=1.0);
+                            std::array<double, 2> cellSize, std::array<int, 2> gridSize, double minAcc=50, double maxAccDiff=200, bool fixedWidth=true, double scaleDephtFactor=3000, 
+                            double scaleWidthFactor=100, double minWidth=1.0);
+
+double diagDistance(const Dune::FieldVector<double, 2> start, const Dune::FieldVector<double, 2> vec, const Dune::FieldVector<double, 2> point);
 
 #endif // FLOWFUNCTIONS_HH

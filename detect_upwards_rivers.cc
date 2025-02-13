@@ -81,9 +81,70 @@
 #include <dune/hydro/rasterdataset.hh>
 #include <dune/vtk/pvdwriter.hh>
 
-#include "flowFunctions.hh"
+//#include "flowFunctions.hh"
 
 
+RasterDataSet<float> removeUpwardsRivers_overall(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, RasterDataSet<float> elevation_raster,
+                             std::array<int, 2> gridSize, double minAcc){
+
+
+    std::cout << "\nStart removing upward rivers" << std::endl;
+    bool change = true;
+    int counter = 0;  
+    while(change){
+        change=false;
+        std::cout << "Gridsize: " << gridSize[0] << ", " << gridSize[1] << std::endl;
+        for (int i = 0; i < gridSize[0]; i++){ 
+            for (int j = 0; j < gridSize[1]; j++){
+                if(accumulation_raster(i, j) > minAcc){
+                    Dune::FieldVector<int, 2> start = {i, j};
+                    Dune::FieldVector<int, 2> end = start;
+
+                    int dir = int(direction_raster(i, j));
+                    if(dir>128 || dir==0) continue;
+
+                    switch (dir)
+                    {
+                    case 1:     end = end + Dune::FieldVector<int, 2>{1, 0};
+                        break;
+                    case 2:     end = end + Dune::FieldVector<int, 2>{1,-1};
+                        break;
+                    case 4:     end = end + Dune::FieldVector<int, 2>{0, -1};
+                        break;
+                    case 8:     end = end + Dune::FieldVector<int, 2>{-1, -1};
+                        break;
+                    case 16:    end = end + Dune::FieldVector<int, 2>{-1, 0};
+                        break;
+                    case 32:    end = end + Dune::FieldVector<int, 2>{-1, 1};
+                        break;
+                    case 64:    end = end + Dune::FieldVector<int, 2>{0, 1};
+                        break;
+                    case 128:   end = end + Dune::FieldVector<int, 2>{1, 1};
+                        break;
+                    default:
+                        break;
+                    }
+                    //std::cout << end <<", " << elevation_raster(end[0], end[1]) << std::endl;
+
+                    if(end[0] >= gridSize[0] || end[1] >= gridSize[1] ||  end[0] < 0 || end[1] < 0 || accumulation_raster(end[0], end[1]) < minAcc){
+                        continue;}
+                    
+                    if(elevation_raster(end[0], end[1]) > elevation_raster(start[0], start[1])){ //end is higher than start
+                        //elevation_raster(end[0], end[1]) = elevation_raster(start[0], start[1]);
+                        //change = true;
+                        counter += 1;
+                        //std::cout << "change: "  << end << std::endl;
+                    }
+                    
+                }
+            }
+        }
+    }
+    std::cout << "Number of upward rivers: " << counter << std::endl;
+    std::cout << "Remove upward rivers done. " << std::endl;
+
+    return elevation_raster;
+}
 
 
 
@@ -126,8 +187,8 @@ int main(int argc, char **argv)
       double ox = image.originLong();
       double oy = image.originLat();
       std::array<int, 2> N;
-      N[0] = 12; //1800
-      N[1] = 12; //1200
+      N[0] = 1800; //1800
+      N[1] = 1200; //1200
       std::array<double, 2> H;
       H[0] = 90; 
       H[1] = 90; 
@@ -141,9 +202,9 @@ int main(int argc, char **argv)
       auto gridp = std::make_shared<Grid>(L, N, std::bitset<2>(0ULL), 1);
 
       // now make raster canvas in cell-centered mode 
-      auto elevation_raster    = RasterDataSet<float>           (99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
-      auto accumulation_raster = RasterDataSet<float>           (99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
-      auto direction_raster    = RasterDataSet<unsigned char>   (99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      auto elevation_raster    = RasterDataSet<float>           (99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
+      auto accumulation_raster = RasterDataSet<float>           (99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      auto direction_raster    = RasterDataSet<unsigned char>   (99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
       //auto elevation_raster    = RasterDataSet<float>         (99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
       //auto accumulation_raster = RasterDataSet<float>         (99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
       //auto direction_raster    = RasterDataSet<unsigned char> (99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
@@ -206,58 +267,69 @@ int main(int argc, char **argv)
       Dune::PDELab::interpolate(bathymmetrygf, gfs, z);
       Dune::PDELab::interpolate(accumulationgf, gfs, az);
       Dune::PDELab::interpolate(directiongf, gfs, dz);
-      using Writer = Dune::VtkImageDataWriter<GV>;
-      Dune::PvdWriter<Writer> pvdWriter(gv, Dune::Vtk::FormatTypes::COMPRESSED, Dune::Vtk::DataTypes::FLOAT32);
-      pvdWriter.addCellData(std::make_shared<VTKF>(zdgf, "bathymmetry"));
-      pvdWriter.addCellData(std::make_shared<VTKF>(azdgf, "accumulation"));
-      pvdWriter.addCellData(std::make_shared<VTKF>(dzdgf, "direction"));
-      std::string fullfilename = "rivers.vti";
-      pvdWriter.writeTimestep(0.0, fullfilename);
+      //using Writer = Dune::VtkImageDataWriter<GV>;
+      //Dune::PvdWriter<Writer> pvdWriter(gv, Dune::Vtk::FormatTypes::COMPRESSED, Dune::Vtk::DataTypes::FLOAT32);
+      //pvdWriter.addCellData(std::make_shared<VTKF>(zdgf, "bathymmetry"));
+      //pvdWriter.addCellData(std::make_shared<VTKF>(azdgf, "accumulation"));
+      //pvdWriter.addCellData(std::make_shared<VTKF>(dzdgf, "direction"));
+      //std::string fullfilename = "rivers.vti";
+      //pvdWriter.writeTimestep(0.0, fullfilename);
 
-
-
+      //int count_up = 0;
+      //for (int i = 0; i < N[0]; i++){ 
+      //      for (int j = 0; j < N[1]; j++){
+      //        if(elevation_raster(i,j)<450 && elevation_raster(i, j)>5 && rand()%100<10){ 
+      //          elevation_raster(i,j)+=100;
+      //          count_up +=1;
+      //        }
+      //      }
+      //}
+      //std::cout << "Number of cells increased: " << count_up << std::endl;
+    removeUpwardsRivers_overall(accumulation_raster, direction_raster, elevation_raster, N, 0.0);
   
+
+
         
-    typedef Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming > Grid_;
-    using GridView = Grid_::LeafGridView;
-
-
-    // create grid
-    const std::array<unsigned, 2> n_ = {N[0], N[1]};
-    const Dune::FieldVector<double, 2> lower = {0.5 * H[0], 0.5 * H[1]};
-    const Dune::FieldVector<double, 2> upper = {L[0] - 0.5 * H[0], L[1] - 0.5 * H[1]};
-
-
-    std::shared_ptr<Grid_> grid = Dune::StructuredGridFactory<Grid_>::createSimplexGrid(lower, upper, n_);
-    const GridView gridView = grid->leafGridView();
-
-    int elem_counter = 0;
-    for (const auto &element : elements(gridView))
-    {
-      elem_counter++;
-    }
+    //typedef Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming > Grid_;
+    //using GridView = Grid_::LeafGridView;
+//
+//
+    //// create grid
+    //const std::array<unsigned, 2> n_ = {N[0], N[1]};
+    //const Dune::FieldVector<double, 2> lower = {0.5 * H[0], 0.5 * H[1]};
+    //const Dune::FieldVector<double, 2> upper = {L[0] - 0.5 * H[0], L[1] - 0.5 * H[1]};
+//
+//
+    //std::shared_ptr<Grid_> grid = Dune::StructuredGridFactory<Grid_>::createSimplexGrid(lower, upper, n_);
+    //const GridView gridView = grid->leafGridView();
+//
+    //int elem_counter = 0;
+    //for (const auto &element : elements(gridView))
+    //{
+    //  elem_counter++;
+    //}
 
     //elevation_raster = removeUpwardsRivers(accumulation_raster, direction_raster, elevation_raster, N);
     //std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
     //refineGridwithFragments(grid, rivers, 0.4, H, 50); 
-    std::vector<std::vector<flowFragment>> fragments = detectFragments(accumulation_raster, direction_raster, H, N);
-    std::cout << "Start refining (might take a while)" << std::endl;
-    refineGridwithFragments(grid, fragments, N, 0.5, H);
-    std::vector<double> height = overallHeight(gridView, elevation_raster, H, N);
-    height= applyFlowHeightFragments(gridView, fragments, height, elevation_raster, H, N);
-
-    Dune::VTKWriter<GridView> vtkWriter(gridView);
-    vtkWriter.addVertexData(height, "height");
-    
-    vtkWriter.write("nakhon_rivers");
-
-   int elem_counter_refined = 0;
-    for (const auto &element : elements(gridView))
-    {
-      elem_counter_refined++;
-    }
-    std::cout << "\nNumber of elements before refinement: " << elem_counter << std::endl;
-    std::cout << "Number of elements after refinement: " << elem_counter_refined << std::endl;
+    //std::vector<std::vector<flowFragment>> fragments = detectFragments(accumulation_raster, direction_raster, H, N);
+    //std::cout << "Start refining (might take a while)" << std::endl;
+    //refineGridwithFragments(grid, fragments, N, 0.5, H);
+    //std::vector<double> height = overallHeight(gridView, elevation_raster, H, N);
+    //height= applyFlowHeightFragments(gridView, fragments, height, elevation_raster, H, N);
+//
+    //Dune::VTKWriter<GridView> vtkWriter(gridView);
+    //vtkWriter.addVertexData(height, "height");
+    //
+    //vtkWriter.write("nakhon_rivers");
+//
+   //int elem_counter_refined = 0;
+    //for (const auto &element : elements(gridView))
+    //{
+    //  elem_counter_refined++;
+    //}
+    //std::cout << "\nNumber of elements before refinement: " << elem_counter << std::endl;
+    //std::cout << "Number of elements after refinement: " << elem_counter_refined << std::endl;
   }
     // close GDAL
   GDALDestroyDriverManager();

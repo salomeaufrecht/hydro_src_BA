@@ -118,8 +118,8 @@ int main(int argc, char **argv)
       double dx = std::abs(image.dLong());
       double dy = std::abs(image.dLat());
       std::array<double, 2> H;
-      H[0] = 1; 
-      H[1] = 1;
+      H[0] = 90; 
+      H[1] = 90;
       Dune::FieldVector<double, 2> L;
 
       std::array<int, 2> N;
@@ -129,10 +129,12 @@ int main(int argc, char **argv)
       std::vector<double> runtime_overallHeight;
       std::vector<double> runtime_applyFlowHeightFragments;
 
-      for(int i = 5; i < 600; i+=5){
+      for(int i = 5; i < 450; i+=6){
             
         N[0] = i;
         N[1] = i;
+        L[0] = N[0] * H[0];
+        L[1] = N[1] * H[1];
         std::cout << i << std::endl;
 
         auto elevation_raster = RasterDataSet<float>(99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
@@ -157,7 +159,6 @@ int main(int argc, char **argv)
         Dune::Timer timeDetectFragments;
         std::vector<std::vector<flowFragment>> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
         double elapsedTimeDetectFragments = timeDetectFragments.stop();
-
 
 
         Dune::Timer timerRefine;  // Timer starten

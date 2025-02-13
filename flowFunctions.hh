@@ -32,6 +32,12 @@ struct flowFragment
     double widthStart;                    ///< Width of the flow at the starting point.
     double widthEnd = -1;                 ///< Width of the flow at the endpoint (default: -1 means same as start).
     double depht = -2;                    ///< Depth of the flow (default: -2 means no value).
+    bool operator<(const flowFragment& f) const{
+        return start[0] < f.start[0] || (start[0] == f.start[0] && start[1] < f.start[1]);
+    }
+    bool operator==(const flowFragment& f) const{
+        return start[0] == f.start[0] && start[1] == f.start[1] && end[0] == f.end[0] && end[1] == f.end[1] && widthStart == f.widthStart && widthEnd == f.widthEnd && depht == f.depht;
+    }
 };
 
 /**

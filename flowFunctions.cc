@@ -411,7 +411,7 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
 
     std::vector<std::vector<fragmentBoundaries>> fragmentsBoundaries = {fragmentsBoundaries00, fragmentsBoundaries01, fragmentsBoundaries10, fragmentsBoundaries11};
 
-    if(minMinSize >0){
+    if(minMinSize > 0){
         for (auto& fragmentBoundarieI : fragmentsBoundaries){
             for(auto& fB : fragmentBoundarieI){
                 if(fB.minSize*(realCellSize[0]+realCellSize[1])/2 < minMinSize ) fB.minSize = minMinSize/(realCellSize[0]+realCellSize[1])*2; //minimum discripancy 0.2m
@@ -833,18 +833,50 @@ std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accu
         
     }
 
-    for (auto rivers : {rivers00, rivers01, rivers10, rivers11}){ //delete all fragments that can be skipped but were not skipped due to order	
-        for (int i = rivers.size()-1; i>=0; i--){ //delete all fragments that can be skipped but were not skipped due to order
-            auto start = rivers[i].start;
-            int start_index_x = round(start[0]/(realCellSize[0] * ((gridSize[0]-1.0)/gridSize[0])) -1);
+    int count = 0;
+    std::vector<std::vector<flowFragment>> rivers = {rivers00, rivers01, rivers10, rivers11};
+    std::cout << "Number of fragments before skip: " << rivers[0].size() + rivers[1].size() + rivers[2].size() + rivers[3].size() << std::endl;
+
+    for(int i = 0; i<4; i++){
+    //for (auto rivers : {rivers00, rivers01, rivers10, rivers11}){ //delete all fragments that can be skipped but were not skipped due to order	
+        for (int j = rivers[i].size()-1; j>=0; j--){ //delete all fragments that can be skipped but were not skipped due to order
+            auto start = rivers[i][j].start;
+            int start_index_x = round(start[0]/(realCellSize[0] * ((gridSize[0]-1.0)/gridSize[0])) -1); //TODO use convert function
             int start_index_y = round(start[1]/(realCellSize[1] * ((gridSize[1]-1.0)/gridSize[1])) -1);
-            if (skip[start_index_y*gridSize[0]+start_index_x]) rivers.erase(rivers.begin()+i);
+            if (skip[start_index_y*gridSize[0]+start_index_x]){ 
+                std::cout << "skip" << std::endl;
+                rivers[i].erase(rivers[i].begin()+j);}
+   
         }
     }
+    std::cout << "Number of fragments: " << rivers[0].size() + rivers[1].size() + rivers[2].size() + rivers[3].size() << std::endl;
 
-    std::cout << "Find fragments done. " << std::endl;
+    std::vector<flowFragment> allFragments;
+        for (auto& f : rivers){
+            for (auto& ff : f){
+              bool dublicate = false;
+              for(auto& fff : allFragments){
+                if(ff == fff){
+                  dublicate = true;
+                  break;
+                }
+              }
+              if(!dublicate) allFragments.push_back(ff);
+            }
+        }
 
-    return {rivers00, rivers01, rivers10, rivers11};
+    std::cout << "Number of unique fragments: " << allFragments.size() << std::endl;
+    //std::cout << "starts: " << count << std::endl;
+
+    
+    for(auto& s : skip){
+        if(s) count +=1;
+    }
+
+
+    std::cout << "Find fragments done. " << count << " cells with river." << std::endl;
+
+    return rivers;
 }
 
 RasterDataSet<float> removeUpwardsRivers(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, RasterDataSet<float> elevation_raster,

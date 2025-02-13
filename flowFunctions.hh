@@ -82,13 +82,6 @@ struct fragmentBoundaries{
 std::vector<double> overallHeight(const Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
                                 RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, std::array<int, 2> gridSize);
 
-
-
-
-
-RasterDataSet<float> removeUpwardsRivers(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, RasterDataSet<float> elevation_raster,
-                            std::array<int, 2> gridSize, double minAcc = 50);
-
 /**
  * @brief Detects rivers in an map, refines the grid to represent them accurately and adjusts the height values.
  * 
@@ -110,12 +103,11 @@ RasterDataSet<float> removeUpwardsRivers(RasterDataSet<float> accumulation_raste
  * @param minMinSize The minimum for minSize in world coordinates (default: 0.2).
  * @return std::vector<double> 
  */
-std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
-                                    const Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
+std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid,
                                     std::array<double, 2> cellSize, std::array<int, 2> gridSize,
                                     RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, RasterDataSet<float> elevation_raster,
-                                    double minSizeFactor = 0.4, double minAcc = 50, double maxAccDiff = 200, double scaleDephtFactor = 3000, 
-                                    double scaleWidthFactor = 100, int maxIterations = 50, double minWidth = 1.0, double minMinSize = 0.2);
+                                    double minAcc = 50, double maxAccDiff = 200, bool fixedWidth = true, double scaleDephtFactor = 3000, 
+                                    double scaleWidthFactor = 100, double minSizeFactor = 0.4, int maxIterations = 50, double minWidth = 1.0);
 
 
 /**

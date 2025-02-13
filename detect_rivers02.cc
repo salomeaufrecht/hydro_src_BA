@@ -126,8 +126,8 @@ int main(int argc, char **argv)
       double ox = image.originLong();
       double oy = image.originLat();
       std::array<int, 2> N;
-      N[0] = 12; //1800
-      N[1] = 12; //1200
+      N[0] = 50; //1800
+      N[1] = 50; //1200
       std::array<double, 2> H;
       H[0] = 90; 
       H[1] = 90; 
@@ -242,7 +242,7 @@ int main(int argc, char **argv)
     //refineGridwithFragments(grid, rivers, 0.4, H, 50); 
     std::vector<std::vector<flowFragment>> fragments = detectFragments(accumulation_raster, direction_raster, H, N);
     std::cout << "Start refining (might take a while)" << std::endl;
-    refineGridwithFragments(grid, fragments, N, 0.5, H);
+    refineGridwithFragments(grid, fragments, N, H,50,  0.5);
     std::vector<double> height = overallHeight(gridView, elevation_raster, H, N);
     height= applyFlowHeightFragments(gridView, fragments, height, elevation_raster, H, N);
 

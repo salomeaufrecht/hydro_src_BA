@@ -119,19 +119,21 @@ int main(int argc, char **argv)
         double dy = std::abs(image.dLat());
 
         std::array<int, 2> N;
-        N[0] = 100; //1800
-        N[1] = 100; //1200
+        N[0] = 50; //1800
+        N[1] = 50; //1200
         std::array<double, 2> H;
-        H[0] = 2; 
-        H[1] = 2; 
+        H[0] = 90; 
+        H[1] = 90; 
         Dune::FieldVector<double, 2> L;
         L[0] = N[0] * H[0];
         L[1] = N[1] * H[1];
 
-
-        auto elevation_raster    = RasterDataSet<float>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
-        auto accumulation_raster = RasterDataSet<float>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
-        auto direction_raster    = RasterDataSet<unsigned char>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      auto elevation_raster    = RasterDataSet<float>           (99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
+      auto accumulation_raster = RasterDataSet<float>           (99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      auto direction_raster    = RasterDataSet<unsigned char>   (99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+        //auto elevation_raster    = RasterDataSet<float>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
+        //auto accumulation_raster = RasterDataSet<float>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+        //auto direction_raster    = RasterDataSet<unsigned char>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
         elevation_raster.paste(image);
         accumulation_raster.paste(aimage);
         direction_raster.paste(dimage);
@@ -148,7 +150,7 @@ int main(int argc, char **argv)
         GridView gridView = grid->leafGridView();
 
         // compute rivers and add them to the map
-        std::vector<double> height = addRiversToMap(grid, gridView, H, N, accumulation_raster, direction_raster, elevation_raster);
+        std::vector<double> height = addRiversToMap(grid, H, N, accumulation_raster, direction_raster, elevation_raster);
 
         
 

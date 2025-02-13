@@ -72,6 +72,27 @@ std::vector<int> calcNeighbors(const Dune::FieldVector<double, 2>& point, std::a
     return {neighborX1, neighborX2, neighborY1, neighborY2};
 }
 
+int selectBox( std::vector<Dune::FieldVector<double, 2>> corners, int xBisector, int yBisector){
+    int box = 0;
+    for (auto c : corners){
+                if(c[0] == xBisector) continue;
+                if(c[0] > xBisector){
+                    box += 2;
+                }
+                break;
+            }
+            for (auto c : corners){
+                if(c[1] == yBisector) continue;
+                if(c[1] > yBisector){
+                    box += 1;
+                }
+                break;
+            }
+    return box;
+}
+
+
+
 /**
  * @brief Calculates the squared distance between two points.
  * 
@@ -186,9 +207,9 @@ std::vector<fragmentBoundaries> calcFragmentBoundaries(std::vector<flowFragment>
         
         double minSize =  minSizeFactor*std::min(f.widthStart, f.widthEnd);
 
-        fragmentBoundaries fB = fragmentBoundaries{start1, start2, b1, b2, minX, maxX, minY, maxY, direction, minSize};
-        fB.depht = f.depht;
-        fB.normal = normalFlowVector;
+        fragmentBoundaries fB = fragmentBoundaries{start1, start2, b1, b2, minX, maxX, minY, maxY, normalFlowVector, direction, minSize, f.depht, f.maxIterationsFragment};
+        //fB.depht = f.depht;
+        //fB.normal = normalFlowVector;
         fragmentsBoundaries.push_back(fB);
         //std::cout << sqrt(squaredDistance(start1, start2)) << " " << sqrt(squaredDistance(end1, end2)) << std::endl;
         //std::cout <<"start: " << start1 << " ; " << start2 << " | end: " << end1 << " ; " << end2 << std::endl;
@@ -253,6 +274,24 @@ bool isPointInFlow(const Dune::FieldVector<double, 2>& point, const fragmentBoun
     return true;
 }
 
+std::array<Dune::FieldVector<double, 2>, 2> calcHypo(std::vector<Dune::FieldVector<double, 2>> corners, double dist01, double dist02){
+    Dune::FieldVector<double, 2> hypo;
+    Dune::FieldVector<double, 2> hypoCenter;
+    
+    if (std::abs(dist01-dist02)< 1e-6){ //90deg at 0
+        hypo = corners[2] - corners[1];
+        hypoCenter = corners[1] + hypo/2;
+    }
+    else if ( dist01 > dist02){  //90deg at 2
+        hypo = corners[0] - corners[1];
+        hypoCenter = corners[1] + hypo/2;
+    }
+    else { //90deg at 1
+        hypo = corners[0] - corners[2];
+        hypoCenter = corners[2] + hypo/2;
+    }
+    return {hypo, hypoCenter};
+}
 
 std::vector<double> overallHeight(const Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
                                 RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, std::array<int, 2> gridSize){
@@ -391,7 +430,7 @@ std::vector<double> applyFlowHeightFragments(const Dune::ALUGrid< 2, 2, Dune::si
 
 
 void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
-        std::vector<std::vector<flowFragment>> fragments, std::array<int, 2> gridSize, double minSizeFactor, std::array<double, 2> cellSize, int maxIterations, double minMinSize){
+        std::vector<std::vector<flowFragment>> fragments, std::array<int, 2> gridSize, std::array<double, 2> cellSize, int maxIterations, double minSizeFactor){
     
     std::cout << "Refining";
     typedef Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming > Grid;
@@ -404,107 +443,65 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
     double xBisector = bisectors[0];
     double yBisector = bisectors[1];
 
-    std::vector<fragmentBoundaries> fragmentsBoundaries00 = calcFragmentBoundaries(fragments[0], minSizeFactor);
-    std::vector<fragmentBoundaries> fragmentsBoundaries01 = calcFragmentBoundaries(fragments[1], minSizeFactor);
-    std::vector<fragmentBoundaries> fragmentsBoundaries10 = calcFragmentBoundaries(fragments[2], minSizeFactor);
-    std::vector<fragmentBoundaries> fragmentsBoundaries11 = calcFragmentBoundaries(fragments[3], minSizeFactor);
-
-    std::vector<std::vector<fragmentBoundaries>> fragmentsBoundaries = {fragmentsBoundaries00, fragmentsBoundaries01, fragmentsBoundaries10, fragmentsBoundaries11};
-
-    if(minMinSize > 0){
-        for (auto& fragmentBoundarieI : fragmentsBoundaries){
-            for(auto& fB : fragmentBoundarieI){
-                if(fB.minSize*(realCellSize[0]+realCellSize[1])/2 < minMinSize ) fB.minSize = minMinSize/(realCellSize[0]+realCellSize[1])*2; //minimum discripancy 0.2m
-                //fB.minSize = 7;
-            }
-        }
+    std::vector<std::vector<fragmentBoundaries>> fragmentsBoundaries;
+    for(auto fragment : fragments){
+        fragmentsBoundaries.push_back(calcFragmentBoundaries(fragment, minSizeFactor));
     }
     
     int c=0;
     bool change = true;
-    while( c<8 && change){ 
+    while( c<maxIterations && change){ 
         std::cout << ".";
         c++; 
         change = false;
          
         for (const auto& element : elements(gridView)){ //check for each element if its part of the border of a flow --> refine
-            //std::cout << "\nelem: ";
-            auto corner0 = element.geometry().corner(0);
-            auto corner1 = element.geometry().corner(1);
-            auto corner2 = element.geometry().corner(2); 
 
-            std::vector<Dune::FieldVector<double, 2>> corners = {corner0, corner1, corner2};
-
-            int selectFB = 0;
-            for (auto c : corners){
-                if(c[0] == xBisector) continue;
-                if(c[0] > xBisector){
-                    selectFB += 2;
-                }
-                break;
+            std::vector<Dune::FieldVector<double, 2>> corners;
+            for(int i = 0; i < 3; i++){
+                corners.push_back(element.geometry().corner(i));
             }
-            for (auto c : corners){
-                if(c[1] == yBisector) continue;
-                if(c[1] > yBisector){
-                    selectFB += 1;
-                }
-                break;
-            }
-
+            
+            int box = selectBox(corners, xBisector, yBisector);
+            
             bool marked = false;
-            //std::cout << "selectFB: " << selectFB << " ";
 
-            for (const auto& fB : fragmentsBoundaries[selectFB]){
-                //std::cout << "\nfragment boundaries: \n" << "start: " << fB.start1 << " ; " << fB.start2 << "\nb: " <<fB.b1 << ", " << fB.b2 <<"\n"  << std::endl;
-                if(marked) { break;}
-                //if(passt) std::cout << "_";
+            for (const auto& fB : fragmentsBoundaries[box]){
+                if(marked) break;
+                if(c>fB.maxIterationsFragment) continue;
 
                 bool between = false;
-                bool out1 = false;
-                bool out2 = false;
+                bool onSide1 = false;
+                bool onSide2 = false;
 
                 bool continueFragment = false;
                 int xOut = 0;
                 int yOut = 0;
                 
                 for (int i = 0; i < 3; i++){
-
                     auto cornerI =corners[i];
 
-                    if (cornerI[0] < fB.minX-realCellSize[0] || cornerI[0] > fB.maxX+realCellSize[0] || cornerI[1] < fB.minY-realCellSize[1] || cornerI[1] > fB.maxY+realCellSize[1]){  //element too far away
+                    if (cornerI[0] < fB.minX-realCellSize[0] || cornerI[0] > fB.maxX+realCellSize[0] || cornerI[1] < fB.minY-realCellSize[1] ||
+                            cornerI[1] > fB.maxY+realCellSize[1]){  //element too far away
                         continueFragment = true; 
                         break;
                     }
                     
-                    //TODO: change this
-                    //if (abs(cornerI[0]-  fB.minX) < 1e-4 || abs(cornerI[0] - fB.maxX) < 1e-4){ //corner on bounding box
-                    //    continueFragment = true; 
-                    //    break;
-                    //}  
-                    //else 
                     if(cornerI[0] < fB.minX) xOut--; //test if (corner of) triangle is outside of desired range
                     else if (cornerI[0] > fB.maxX)xOut++;
-
-                    //TODO: change this
-                    //if (abs(cornerI[1]- fB.minY) < 1e-4 || abs(cornerI[1] - fB.maxY) < 1e-4){ //corner on bounding box
-                    //    continueFragment = true; 
-                    //    break;
-                    //}
-                    //else 
                     if(cornerI[1] < fB.minY) yOut--;
                     else if (cornerI[1] > fB.maxY) yOut ++;
                  
-
                     if(fB.direction == 1){ //horizontal
-                        if(cornerI[1] > fB.maxY) out1 = true;
-                        else if (cornerI[1] < fB.minY) out2 = true;
+                        if(cornerI[1] > fB.maxY) onSide1 = true;
+                        else if (cornerI[1] < fB.minY) onSide2 = true;
                         else between = true;
                         continue;
                     }
 
                     if(fB.direction == 2){ //vertical
-                        if(cornerI[0] > fB.maxX) out2 = true;
-                        else if (cornerI[0] < fB.minX) out1 = true;
+                        if(cornerI[0] > fB.maxX) onSide2 = true;
+                        else if (cornerI[0] < fB.minX) onSide1 = true;
                         else between = true;
                         continue;
                     }
@@ -514,64 +511,57 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
                     double cross1 = fB.b1[0] * vec1[1] - fB.b1[1] * vec1[0];
                     double cross2 = fB.b2[0] * vec2[1] - fB.b2[1] * vec2[0];
                     
-                    if(cross1 > 0) out1 = true;
-                    else if(cross2 < 0) out2 = true;
+                    if(cross1 > 0) onSide1 = true;
+                    else if(cross2 < 0) onSide2 = true;
                     else between = true;
-
-                    //std::cout << "corner: " << cornerI  <<", " << out1 << out2 << between << " cross1: " << cross1 << " cross2: " << cross2 << std::endl;
                 }
 
 
-                
-                if(continueFragment || std::abs(xOut) == 3 || std::abs(yOut) == 3 || between + out1 + out2 <= 1){continue;} // all 3 corners outside x/y boundary/one corner too far away
-                //std::cout << "corners: " << corners[0] << " \n       " << corners[1] << " \n       " << corners[2] << std::endl;
-                //std::cout << "out1: " << out1 << " out2: " << out2 << " between: " << between << std::endl;
-                if(out1+out2==2) { //whole flow inside triangle
-                    //std::cout <<"out1+out2==2" << std::endl;
+                if(continueFragment || std::abs(xOut) == 3 || std::abs(yOut) == 3 || between + onSide1 + onSide2 <= 1){continue;} // all 3 corners outside x/y boundary or element too far away or flow not trough element
+
+                if(onSide1+onSide2==2) { //whole flow inside triangle
                     grid->mark(1, element); 
                     marked = true;
                     change=true; 
                     continue;}
 
-                double dist01 = squaredDistance(corner0, corner1);
-                double dist02 = squaredDistance(corner0, corner2);
+                double dist01 = squaredDistance(corners[0], corners[1]);
+                double dist02 = squaredDistance(corners[0], corners[2]);
 
                 if (std::min({dist01, dist02}) < fB.minSize*fB.minSize){ continue;} //small enough
 
-
-
-                //following makes only small difference
+                //following makes only small difference //TODO: check and make as a function
                 if(fB.direction == 1){
                     Dune::FieldVector<double, 2> pointOfHorSide = {-100, -100};
-                    if(abs((corner2-corner0)[1]) < 1e-8) pointOfHorSide = corner0;
-                    else if (abs((corner2-corner1)[1]) < 1e-8) pointOfHorSide = corner1;
-                    else if (abs((corner1-corner0)[1]) < 1e-8) pointOfHorSide = corner0;
+                    if(abs((corners[2]-corners[0])[1]) < 1e-8) pointOfHorSide = corners[0];
+                    else if (abs((corners[2]-corners[1])[1]) < 1e-8) pointOfHorSide = corners[1];
+                    else if (abs((corners[1]-corners[0])[1]) < 1e-8) pointOfHorSide = corners[0];
                     if(abs((pointOfHorSide -fB.start1)[1]) < 1e-1){
                         //std::cout << ":"; 
-                        continue;} //TODO: <?; restrict size of triangle?
+                        continue;} 
                     else if(abs((pointOfHorSide -fB.start2)[1]) < 1e-1) {
                         //std::cout << ":"; 
-                        continue;} //TODO: <?; restrict size of triangle?
+                        continue;} 
 
                 }
                 if(fB.direction == 2){
                     Dune::FieldVector<double, 2> pointOfVertSide = {-100, -100};
-                    if(abs((corner2-corner0)[0]) < 1e-8) pointOfVertSide = corner0;
-                    else if (abs((corner2-corner1)[0]) < 1e-8) pointOfVertSide = corner1;
-                    else if (abs((corner1-corner0)[0]) < 1e-8) pointOfVertSide = corner0;
+                    if(abs((corners[2]-corners[0])[0]) < 1e-8) pointOfVertSide = corners[0];
+                    else if (abs((corners[2]-corners[1])[0]) < 1e-8) pointOfVertSide = corners[1];
+                    else if (abs((corners[1]-corners[0])[0]) < 1e-8) pointOfVertSide = corners[0];
                     if(abs((pointOfVertSide -fB.start1)[0]) < 1e-1) {
                         //std::cout << ":"; 
-                        continue;} //TODO: <?; restrict size of triangle?
+                        continue;} 
                     else if(abs((pointOfVertSide -fB.start2)[0]) < 1e-1) {
                         //std::cout << ":"; 
-                        continue;} //TODO: <?; restrict size of triangle?
+                        continue;}
 
                 }
                 if(fB.direction == 3){
                     Dune::FieldVector<double, 2> pointOfDiagSide = {-100, -100};
-                    Dune::FieldVector<double, 2> side1 = (corner2 - corner0);
-                    Dune::FieldVector<double, 2> side2 = (corner2 - corner1);
-                    Dune::FieldVector<double, 2> side3 = (corner1 - corner0);             
+                    Dune::FieldVector<double, 2> side1 = (corners[2] - corners[0]);
+                    Dune::FieldVector<double, 2> side2 = (corners[2] - corners[1]);
+                    Dune::FieldVector<double, 2> side3 = (corners[1] - corners[0]);             
 
                     side1[0]=side1[0]*fB.b1[0];
                     side2[0]=side2[0]*fB.b1[0];
@@ -580,38 +570,25 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
                     side2[1]=side2[1]*fB.b1[1];
                     side3[1]=side3[1]*fB.b1[1];
 
-                    if(abs(side1[0]-side1[1]) < 1e-8) pointOfDiagSide = corner0;
-                    if(abs(side2[0]-side2[1]) < 1e-8) pointOfDiagSide = corner1;
-                    if(abs(side3[0]-side3[1]) < 1e-8) pointOfDiagSide = corner0;
+                    if(abs(side1[0]-side1[1]) < 1e-8) pointOfDiagSide = corners[0];
+                    if(abs(side2[0]-side2[1]) < 1e-8) pointOfDiagSide = corners[1];
+                    if(abs(side3[0]-side3[1]) < 1e-8) pointOfDiagSide = corners[0];
 
 
                     if(diagDistance(fB.start1, fB.b1, pointOfDiagSide) < 1e-1 || diagDistance(fB.start2, fB.b1, pointOfDiagSide) < 1e-1) {
-                        //std::cout << ";"; 
-                        continue;} //TODO: <?; restrict size of triangle?
+                        continue;} 
                 }
 
-                Dune::FieldVector<double, 2> hypo;
-                Dune::FieldVector<double, 2> hypoCenter;
+                std::array<Dune::FieldVector<double, 2>, 2> hypoAndCenter = calcHypo(corners, dist01, dist02);
+                Dune::FieldVector<double, 2> hypo = hypoAndCenter[0];
+                Dune::FieldVector<double, 2> hypoCenter = hypoAndCenter[1];
 
-                //calc hypothenuse v; point on center of hypothenuse
-                if (std::abs(dist01-dist02)< 1e-6){ //90deg at 0
-                    hypo = corner2 - corner1;
-                    hypoCenter = corner1 + hypo/2;
-                }
-                else if ( dist01 > dist02){  //90deg at 2
-                    hypo = corner0 - corner1;
-                    hypoCenter = corner1 + hypo/2;
-                }
-                else { //90deg at 1
-                    hypo = corner0 - corner2;
-                    hypoCenter = corner2 + hypo/2;
-                }
 
 
                 if(fB.direction == 1 || fB.direction == 2){ //flow (and border) horizontal or vertical
                     if (std::abs(hypo[0]) < 1e-8 || std::abs(hypo[1]) < 1e-8){ //hypotenuse vertical or horizontal
 
-                        //grid->mark(1, element);//hypothenuse vertical or horizontal
+                        //grid->mark(1, element);//hypothenuse vertical or horizontal //TODO: check effect for arbitrary width
                         //marked = true;
                         //change = true;
                         ////std::cout << "wrong direction" << std::endl;
@@ -628,40 +605,8 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
                         //change = true;
                         //continue;
                     }
-                    
-                    //checks if hypoCenter shifted by minSize/2 away from border in each both directions is on time one one side and one time on another
-                    //Dune::FieldVector<double, 2> minSizeHalf = {std::sqrt(2) * fB.minSize/2, std::sqrt(2) * fB.minSize/2};
-                    //if(abs(fB.normal[0]+fB.normal[1])<1e-8){
-                    //    minSizeHalf = {std::sqrt(2) * -fB.minSize/2, std::sqrt(2)* fB.minSize/2 };
-                    //}
-                    //if(hypoCenter[0]<90 && hypoCenter[1] > 195){
-                    //    std::cout << "\nfragment boundaries: \n" << "start: " << fB.start1 << " ; " << fB.start2 << "\nb: " <<fB.b1 << ", " << fB.b2  << std::endl;
-//
-                    //    std::cout << "\n hypoCenter= " << hypoCenter << "\nhc-msh = " << hypoCenter-minSizeHalf << "\nhc+msh = " << hypoCenter + minSizeHalf << std::endl;             
-                    //    std::cout <<"start-hc: x: " << fB.start1[0] - hypoCenter[0] << " y: " << fB.start1[1] - hypoCenter[1] << "\nstart-hc: x: " << fB.start2[0] - hypoCenter[0] << " y: " << fB.start2[1] - hypoCenter[1] << std::endl;
-                    //}
-                    Dune::FieldVector<double, 2> vec = (hypoCenter) - fB.start1;
-
-                    //Dune::FieldVector<double, 2> vec1_U = (hypoCenter + minSizeHalf) - fB.start1;
-                    //Dune::FieldVector<double, 2> vec1_D = (hypoCenter - minSizeHalf) - fB.start1;
-                    //Dune::FieldVector<double, 2> vec2_U = (hypoCenter + minSizeHalf) - fB.start2;
-                    //Dune::FieldVector<double, 2> vec2_D = (hypoCenter - minSizeHalf) - fB.start2;
-
-                    //if(hypoCenter[0]<90 && hypoCenter[1] > 195) std::cout << "vec1_U: " << vec1_U << " vec1_D: " << vec1_D << " vec2_U: " << vec2_U << " vec2_D: " << vec2_D << std::endl;
-                    
-                    //double cross1_U = fB.b1[0] * vec1_U[1] - fB.b1[1] * vec1_U[0];
-                    //double cross1_D = fB.b1[0] * vec1_D[1] - fB.b1[1] * vec1_D[0];
-                    //double cross2_U = fB.b2[0] * vec2_U[1] - fB.b2[1] * vec2_U[0];
-                    //double cross2_D = fB.b2[0] * vec2_D[1] - fB.b2[1] * vec2_D[0];
-                    //if(hypoCenter[0]<90 && hypoCenter[1] > 195) std::cout << fB.b1[0] <<"*"<< vec1_U[1] <<"-"<< fB.b1[1] <<"*" << vec1_U[0] << "=" << cross1_U << std::endl;
-                    //if(hypoCenter[0]<90 && hypoCenter[1] > 195) std::cout << "cross1_U: " << cross1_U << " cross1_D: " << cross1_D << " cross2_U: " << cross2_U << " cross2_D: " << cross2_D << std::endl;
-                    //if(passt)std::cout << ".";
-                    //std::cout << fB.start1 <<", " << fB.b1 << "\n" << hypoCenter << ": "<< hypoCenter- fB.start1 << std::endl;
-                    //std::cout << diagDistance(fB.start1, fB.b1, hypoCenter) << ", " << diagDistance(fB.start2, fB.b1, hypoCenter) << std::endl;
+                                        
                     if(abs(diagDistance(fB.start1, fB.b1, hypoCenter))<fB.minSize/2 || abs(diagDistance(fB.start2, fB.b1, hypoCenter))<fB.minSize/2){continue;}
-                    //if(abs(abs(vec[0])-abs(vec[1]))<fB.minSize*sqrt(2)) std::cout << "a";
-                    //if((cross1_U * cross1_D < 0) ||(cross2_U * cross2_D < 0) ){std::cout << "b\n";continue;} // points on different sides of border --> hypoCenter closer than minSize/2
-                    //if(abs(cross1_U) < 1e-8 || abs(cross1_D) < 1e-8 || abs(cross2_U) < 1e-8 || abs(cross2_D) < 1e-8){std::cout << "close enough" << std::endl; passt=true;continue;} //points on border
                 }
             
                 //std::cout << "end" << std::endl;    
@@ -689,7 +634,6 @@ std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accu
     int xBisector = std::floor(gridSize[0]/2);
     int yBisector = std::floor(gridSize[1]/2);
 
-
     std::vector<flowFragment> rivers00;
     std::vector<flowFragment> rivers01;
     std::vector<flowFragment> rivers10;
@@ -700,123 +644,134 @@ std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accu
     std::cout << "Start finding flow fragments" << std::endl;
     for (int i = 0; i < gridSize[0]; i++){ 
         for (int j = 0; j < gridSize[1]; j++){
+            Dune::FieldVector<double, 2> startWorld = {-100, -100};
+            Dune::FieldVector<double, 2> endWorld = {-100, -100};
             if(skip[j*gridSize[0]+i]) continue;
             if(accumulation_raster(i, j) > minAcc ){
-                Dune::FieldVector<double, 2> start = {i, j};
-                Dune::FieldVector<double, 2> end = start;
+                Dune::FieldVector<int, 2> start = {i, j};
+                Dune::FieldVector<int, 2> end = start;
 
                 int dir = int(direction_raster(i, j));
                 if(dir>128 || dir==0) continue;
                 
-                int endI=  i;
-                int endJ = j;
                 int endDir = dir;
                 
                 double accStart = accumulation_raster(i, j);
                 double accEnd = accStart;
 
-                //if(dir != 2 && dir != 8 && dir != 32 && dir != 128) continue; //only horizontal or vertical flow
-                
+                int directionCategory = 0;
 
+                if(dir == 2 || dir == 8 || dir == 32 || dir == 128) directionCategory = 3; //diagonal
+                else if(dir == 1 || dir == 16) directionCategory = 1; //horizontal
+                else if(dir == 4 || dir == 64) directionCategory = 2; //vertical
+                
                 while (endDir == dir ){ //straight flow
-                    skip[endJ*gridSize[0]+endI]=1; //elements in middle of fragment don't need to be checked again
-                    Dune::FieldVector<double, 2> currPoint = end;
+                    skip[end[1]*gridSize[0]+end[0]]=1; //elements in middle of fragment don't need to be checked again
+                    Dune::FieldVector<int, 2> currPoint = end;
                     switch (dir)
                     {
-                    case 1:     end= end+ Dune::FieldVector<double, 2>{1, 0};
+                    case 1:     end= end+ Dune::FieldVector<int, 2>{1, 0};
                         break;
-                    case 2:     end= end+ Dune::FieldVector<double, 2>{1,-1};
+                    case 2:     end= end+ Dune::FieldVector<int, 2>{1,-1};
                         break;
-                    case 4:     end= end+ Dune::FieldVector<double, 2>{0, -1};
+                    case 4:     end= end+ Dune::FieldVector<int, 2>{0, -1};
                         break;
-                    case 8:     end= end+ Dune::FieldVector<double, 2>{-1, -1};
+                    case 8:     end= end+ Dune::FieldVector<int, 2>{-1, -1};
                         break;
-                    case 16:    end= end+ Dune::FieldVector<double, 2>{-1, 0};
+                    case 16:    end= end+ Dune::FieldVector<int, 2>{-1, 0};
                         break;
-                    case 32:    end= end+ Dune::FieldVector<double, 2>{-1, 1};
+                    case 32:    end= end+ Dune::FieldVector<int, 2>{-1, 1};
                         break;
-                    case 64:    end= end+ Dune::FieldVector<double, 2>{0, 1};
+                    case 64:    end= end+ Dune::FieldVector<int, 2>{0, 1};
                         break;
-                    case 128:   end= end+ Dune::FieldVector<double, 2>{1, 1};
+                    case 128:   end= end+ Dune::FieldVector<int, 2>{1, 1};
                         break;
                     default:
                         break;
-                
                     }
+
                     
                     if(end[0] >= gridSize[0] || end[1] >= gridSize[1] || end[0] < 0 || end[1] < 0) { //end is outside of grid
-                        accEnd = accumulation_raster(endI, endJ); 
-                        end=(currPoint + end)/2; //set end on border of grid
+                        accEnd = accumulation_raster(currPoint[0], currPoint[1]); 
+                        endWorld = Dune::FieldVector<double, 2>{currPoint+end}/2; //set end on border of grid
                         break;
                     }
+
                     
-                    endI = round(end[0]); 
-                    endJ = round(end[1]);
-                    endDir = int(direction_raster(endI, endJ));
-                    accEnd = accumulation_raster(endI, endJ);
+                    endDir = int(direction_raster(end[0], end[1]));
+                    accEnd = accumulation_raster(end[0], end[1]);
+
 
                     if(std::abs(accStart-accEnd)>maxAccDiff){
+                        end = currPoint;
                         if(currPoint==start) break;
                         end = currPoint;
-                        endI = round(currPoint[0]); 
-                        endJ = round(currPoint[1]);
-                        skip[endJ*gridSize[0]+endI]=0; //end should not be skipped
-                        accEnd = accumulation_raster(endI, endJ); 
+                        accEnd = accumulation_raster(end[0], end[1]); 
                         break;
                     }
 
                 }
 
                 skip[j*gridSize[0]+i] = 0; //start should not be skipped (skipped in first loop iteration)
+                if(endWorld == Dune::FieldVector<double, 2>{-100, -100}) skip[end[1]*gridSize[0]+end[0]]=0; //end should not be skipped
 
-                double volume = (accStart+accEnd)/2;
-                double depht = volume/scaleDephtFactor;
+
+                double avgAccumulation = (accStart+accEnd)/2;
+
+                double depht = avgAccumulation/scaleDephtFactor; //TODO: find factor
                 depht = std::min(15.0, depht); //max depht 15m
                 depht = std::max(0.2, depht); //min depht 0.2m
 
-                depht = 90;
+                depht = 90; //TODO: remove
 
-                double width = volume/(scaleWidthFactor); //width of flow in cells
+                double width = avgAccumulation/(scaleWidthFactor); //width of flow in cells
 
-                //std::cout << "accStart " << accStart << " accEnd " << accEnd << std::endl;
-
-                //std::cout <<"breite: " << width << std::endl;
+                int maxIterationsFragment = 50;
 
                 if(fixedWidth){   
-                    
-                    if (volume < 500) width = 9.6;//1/8*90.0; // 9.4;
-                    else if (volume < 2500) width = 46.355; //46.2;
-                    else if (volume < 5000) width = 65.5;
-                    else width = 90;
-                    //else continue; //river big enough to not be refined
-                    //std::cout << "fixed width " << width << std::endl;
+                    if (avgAccumulation < 500){
+                        width = 9.6;
+                        maxIterationsFragment = 6 + int(directionCategory==3);
+                    }
+                    else if (avgAccumulation < 2500) {
+                        width = 46.355;
+                        maxIterationsFragment = 2 + int(directionCategory==3)*2;
+                        }
+                    else if (avgAccumulation < 5000){ 
+                        width = 65.5;
+                        maxIterationsFragment = 1 + int(directionCategory==1 || directionCategory==2)*3;
+                    }
+                    else {
+                        width = 90;
+                        maxIterationsFragment = 2;
+                    }
                 }
                 else{
-                    width = volume/(scaleWidthFactor);
+                    width = avgAccumulation/(scaleWidthFactor); //TODO finde factor
                     width = std::min((realCellSize[0]+realCellSize[1])/2, width); //max width realCellSize
                     width = std::max(minWidth, width); //min width
                 }
+                width = width/cellSize[0] * realCellSize[0];
+
     
+                //std::cout << "width: " << width << " --> "   << width*realCellSize[0] <<" vs: "<< avgAccumulation/scaleWidthFactor << std::endl;
+                //std::cout << "depht: " <<depht << " --> "    << depht*realCellSize[0] << " vs: "<< avgAccumulation/scaleDephtFactor << std::endl << std::endl;
 
-                //std::cout << start << " - " << end << std::endl;
-                //std::cout << "width: " << width << " --> "   << width*realCellSize[0] <<" vs: "<< volume/scaleWidthFactor << std::endl;
-                //std::cout << "depht: " <<depht << " --> "    << depht*realCellSize[0] << " vs: "<< volume/scaleDephtFactor << std::endl << std::endl;
-
-                //std::cout << "final: " << start << " - " << end << std::endl;
+                Dune::FieldVector<double, 2> shift = {0.5, 0.5}; //fragments should start in middle of cell
+                startWorld = Dune::FieldVector<double, 2>(start)+shift;
+                if(endWorld == Dune::FieldVector<double, 2>{-100, -100}) endWorld = Dune::FieldVector<double, 2>(end)+shift;
+                else endWorld += shift;
+            
+                startWorld = convertToGlobalCoordinates(startWorld, cellSize, realCellSize);
+                endWorld = convertToGlobalCoordinates(endWorld, cellSize, realCellSize);
+                //std::cout << width << std::endl;
+                
+                flowFragment f = {startWorld, endWorld, width, width, depht, maxIterationsFragment, directionCategory}; 
 
                 std::array<bool, 2> boxStart = {start[0] < xBisector, start[1] < yBisector};
                 std::array<bool, 2> boxEnd = {end[0] < xBisector, end[1] < yBisector};
 
-                Dune::FieldVector<double, 2>shift = {0.5, 0.5}; //fragments should start in middle of cell
-                start = convertToGlobalCoordinates(start+shift, cellSize, realCellSize);
-                end = convertToGlobalCoordinates(end+shift, cellSize, realCellSize);
-                width = width/cellSize[0] * realCellSize[0];
-                //std::cout << width << std::endl;
-                
-                flowFragment f = {start, end, width}; 
-                f.depht = depht;
-
-                if((boxStart[0] xor boxEnd[0]) && (boxStart[1] xor boxEnd[1])){ 
+                if((boxStart[0] xor boxEnd[0]) && (boxStart[1] xor boxEnd[1])){  //diag flow throuh diagonal boxes
                     rivers00.push_back(f);
                     rivers01.push_back(f);
                     rivers10.push_back(f);
@@ -824,9 +779,9 @@ std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accu
                     continue;
                 }
 
-                if((boxStart[0] && boxStart[1])|| (boxEnd[0] && boxEnd[1])) rivers00.push_back(f);
-                if((boxStart[0] && !boxStart[1])|| (boxEnd[0] && !boxEnd[1])) rivers01.push_back(f);
-                if((!boxStart[0] && boxStart[1])|| (!boxEnd[0] && boxEnd[1])) rivers10.push_back(f);
+                if((boxStart[0]  && boxStart[1]) || (boxEnd[0] && boxEnd[1])) rivers00.push_back(f);
+                if((boxStart[0]  && !boxStart[1])|| (boxEnd[0] && !boxEnd[1])) rivers01.push_back(f);
+                if((!boxStart[0] && boxStart[1]) || (!boxEnd[0] && boxEnd[1])) rivers10.push_back(f);
                 if((!boxStart[0] && !boxStart[1])|| (!boxEnd[0] && !boxEnd[1])) rivers11.push_back(f);                
             }
         }
@@ -837,16 +792,15 @@ std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accu
     std::vector<std::vector<flowFragment>> rivers = {rivers00, rivers01, rivers10, rivers11};
     std::cout << "Number of fragments before skip: " << rivers[0].size() + rivers[1].size() + rivers[2].size() + rivers[3].size() << std::endl;
 
+    //TODO delete skippables
+
     for(int i = 0; i<4; i++){
-    //for (auto rivers : {rivers00, rivers01, rivers10, rivers11}){ //delete all fragments that can be skipped but were not skipped due to order	
         for (int j = rivers[i].size()-1; j>=0; j--){ //delete all fragments that can be skipped but were not skipped due to order
             auto start = rivers[i][j].start;
-            int start_index_x = round(start[0]/(realCellSize[0] * ((gridSize[0]-1.0)/gridSize[0])) -1); //TODO use convert function
-            int start_index_y = round(start[1]/(realCellSize[1] * ((gridSize[1]-1.0)/gridSize[1])) -1);
-            if (skip[start_index_y*gridSize[0]+start_index_x]){ 
-                std::cout << "skip" << std::endl;
+            Dune::FieldVector<double, 2> rasterStart = convertToRasterCoordinates(start, cellSize, realCellSize); //TODO use convert function
+            rasterStart = rasterStart - Dune::FieldVector<double, 2>{0.5, 0.5};
+            if (skip[round(rasterStart[1])*gridSize[0]+round(rasterStart[0])]){ 
                 rivers[i].erase(rivers[i].begin()+j);}
-   
         }
     }
     std::cout << "Number of fragments: " << rivers[0].size() + rivers[1].size() + rivers[2].size() + rivers[3].size() << std::endl;
@@ -952,7 +906,7 @@ std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::si
     elevation_raster = removeUpwardsRivers(accumulation_raster, direction_raster, elevation_raster, gridSize, minAcc);
 
     std::vector<std::vector<flowFragment>> fragments = detectFragments(accumulation_raster, direction_raster, cellSize, gridSize, minAcc, maxAccDiff, true, scaleDephtFactor, scaleWidthFactor, minWidth);
-    refineGridwithFragments(grid, fragments, gridSize, minSizeFactor, cellSize, maxIterations);
+    refineGridwithFragments(grid, fragments, gridSize, cellSize, maxIterations, minSizeFactor);
     
     std::vector<double> height = overallHeight(gridView, elevation_raster, cellSize, gridSize);
 

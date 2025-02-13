@@ -32,6 +32,8 @@ struct flowFragment
     double widthStart;                    ///< Width of the flow at the starting point.
     double widthEnd = -1;                 ///< Width of the flow at the endpoint (default: -1 means same as start).
     double depht = -2;                    ///< Depth of the flow (default: -2 means no value).
+    int maxIterationsFragment = 50;               ///< Maximum number of iterations for refinement.
+    int direction = 0;                     ///< Direction of the fragment (0: any, 1: horizontal, 2: vertical, 3: diagonal).	
     bool operator<(const flowFragment& f) const{
         return start[0] < f.start[0] || (start[0] == f.start[0] && start[1] < f.start[1]);
     }
@@ -56,10 +58,11 @@ struct fragmentBoundaries{
     double maxX;                           ///< Maximum x-coordinate of the bounding box.
     double minY;                           ///< Minimum y-coordinate of the bounding box.
     double maxY;                           ///< Maximum y-coordinate of the bounding box.
+    Dune::FieldVector<double, 2> normal;  ///< The vector pointing away from the flow vector.
     int direction = 0;                     ///< Direction of the fragment (0: any, 1: horizontal, 2: vertical, 3: diagonal).
     double minSize = 0.1;                  ///< Minimum size of the fragment for refinement purposes.
-    double depht = 0;                      ///< Depth of the flow fragment.
-    Dune::FieldVector<double, 2> normal;  ///< The vector pointing away from the flow vector.
+    double depht = 1;                      ///< Depth of the flow fragment.
+    int maxIterationsFragment = 50;               ///< Maximum number of iterations for refinement.
 };
 
 
@@ -157,7 +160,7 @@ std::vector<double> applyFlowHeightFragments(const Dune::ALUGrid< 2, 2, Dune::si
  * @param minMinSize The minimum for minSize in world coordinates (default: 0.2).
  */
 void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
-        std::vector<std::vector<flowFragment>> fragments,std::array<int, 2> gridSize, double minSizeFactor=0.4, std::array<double, 2> cellSize = {1.0,1.0}, int maxIterations=60, double minMinSize=0.2);
+        std::vector<std::vector<flowFragment>> fragments,std::array<int, 2> gridSize, std::array<double, 2> cellSize = {1.0,1.0}, int maxIterations=60, double minSizeFactor=0.4);
 
 
 /**

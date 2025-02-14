@@ -65,6 +65,57 @@ struct fragmentBoundaries{
     int maxIterationsFragment = 50;               ///< Maximum number of iterations for refinement.
 };
 
+/**
+ * @brief Calculates the real cell size based on the grid size and cell size.
+ * 
+ * @param cellSize The selected size of each grid cell.
+ * @param gridSize The dimensions of the grid.
+ * @return std::array<double, 2> The actual size of each grid cell.
+ */
+std::array<double, 2> calcRealCellSize(std::array<double, 2> cellSize, std::array<int, 2> gridSize);
+
+
+/**
+ * @brief Detects flow fragments based on accumulation and direction raster data.
+ * 
+ * Identifies flow fragments by analyzing accumulation and direction data from raster datasets. 
+ * The results include start and end points, as well as additional geometric details for 
+ * each fragment.
+ * 
+ * @param accumulation_raster The raster dataset containing accumulation values.
+ * @param direction_raster The raster dataset containing flow direction values.
+ * @param cellSize The size of each grid cell in physical units.
+ * @param gridSize The dimensions of the grid.
+ * @param minAcc The minimum accumulation threshold for detecting fragments (default: 50).
+ * @param maxAccDiff The maximum allowed difference in accumulation within a fragment (default: 200).
+ * @param scaleDephtFactor The scaling factor to calculate flow depth from accumalation values(default: 600).
+ * @param scaleWidthFactor The scaling factor to calculate flow width from accumalation values(default: 90).
+ * @param minWidth The minimum allowed width of a fragment (default: 1.0).
+ * * @param maxWidth The maximum allowed width of a fragment (default: -1 which means cellSize).
+ * @return std::vector<flowFragment> A vector of detected flow fragments grouped in bounding boxes.
+ */
+std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, 
+                            std::array<double, 2> cellSize, std::array<int, 2> gridSize, double minAcc=50, double maxAccDiff=200, bool fixedWidth=true, 
+                            double scaleDephtFactor=600, double scaleWidthFactor=90, double minWidth=1.0, double maxWidth=-1);
+
+/**
+ * @brief Refines the grid to ensure accurate representation of flow fragments.
+ * 
+ * Adjusts the grid's resolution to properly capture the geometric details of the flow 
+ * fragments. Refinement stops when the triangle size is smaller than the specified 
+ * minimum size relative to the fragment width.
+ * 
+ * @param grid The grid where the refinement will be applied.
+ * @param fragments A vector containing all flow fragments to be refined.
+ * @param gridSize The dimensions of the grid.
+ * @param cellSize The size of each grid cell (default: {90.0, 90.0}).
+ * @param maxIterations The maximal amount of refinement iterations (default: 50).
+ * @param minSizeFactor The minimum size factor for refinement, relative to fragment width (default: 0.4).
+ * @param exactCalc Whether to use exact calculations for the fragment width (default: false).
+ */
+void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
+        std::vector<std::vector<flowFragment>> fragments,std::array<int, 2> gridSize, std::array<double, 2> cellSize = {90.0, 90.0}, int maxIterations=50, 
+        double minSizeFactor=0.4, bool exactCalc = false);
 
 
 /**
@@ -81,6 +132,24 @@ struct fragmentBoundaries{
  */
 std::vector<double> overallHeight(const Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
                                 RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, std::array<int, 2> gridSize);
+
+/**
+ * @brief Applies depth to all river fragments by setting the corresponding height values.
+ * 
+ * Updates the height values for vertices in the grid based on the depth of the flow fragments. 
+ * The height value for each affected vertex is substracted by `depht`.
+ * 
+ * @param grid The ALUGrid representing the map.
+ * @param fragments A vector containing all flow fragments.
+ * @param height A vector of height values for each vertex, modified in this function.
+ * @param elevation_raster The elevation raster dataset for reference.
+ * @param cellSize The size of each cell in the grid.
+ * @param gridSize The dimensions of the grid.
+ * @return std::vector<double> The updated height values.
+ */
+std::vector<double> applyFlowHeightFragments(const Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
+       std::vector<std::vector<flowFragment>> fragments, std::vector<double> height, RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, 
+        std::array<int, 2> gridSize);
 
 /**
  * @brief Detects rivers in an map, refines the grid to represent them accurately and adjusts the height values.
@@ -106,77 +175,8 @@ std::vector<double> overallHeight(const Dune::ALUGrid< 2, 2, Dune::simplex, Dune
 std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid,
                                     std::array<double, 2> cellSize, std::array<int, 2> gridSize,
                                     RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, RasterDataSet<float> elevation_raster,
-                                    double minAcc = 50, double maxAccDiff = 200, bool fixedWidth = true, double scaleDephtFactor = 3000, 
-                                    double scaleWidthFactor = 100, double minSizeFactor = 0.4, int maxIterations = 50, double minWidth = 1.0);
-
-
-/**
- * @brief Calculates the real cell size based on the grid size and cell size.
- * 
- * @param cellSize The selected size of each grid cell.
- * @param gridSize The dimensions of the grid.
- * @return std::array<double, 2> The actual size of each grid cell.
- */
-std::array<double, 2> calcRealCellSize(std::array<double, 2> cellSize, std::array<int, 2> gridSize);
-
-/**
- * @brief Applies depth to all river fragments by setting the corresponding height values.
- * 
- * Updates the height values for vertices in the grid based on the depth of the flow fragments. 
- * The height value for each affected vertex is substracted by `depht`.
- * 
- * @param grid The ALUGrid representing the map.
- * @param fragments A vector containing all flow fragments.
- * @param height A vector of height values for each vertex, modified in this function.
- * @param elevation_raster The elevation raster dataset for reference.
- * @param cellSize The size of each cell in the grid.
- * @param gridSize The dimensions of the grid.
- * @return std::vector<double> The updated height values.
- */
-std::vector<double> applyFlowHeightFragments(const Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
-       std::vector<std::vector<flowFragment>> fragments, std::vector<double> height, RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, 
-        std::array<int, 2> gridSize);
-
-/**
- * @brief Refines the grid to ensure accurate representation of flow fragments.
- * 
- * Adjusts the grid's resolution to properly capture the geometric details of the flow 
- * fragments. Refinement stops when the triangle size is smaller than the specified 
- * minimum size relative to the fragment width.
- * 
- * @param grid The grid where the refinement will be applied.
- * @param fragments A vector containing all flow fragments to be refined.
- * @param minSizeFactor The minimum size factor for refinement, relative to fragment width (default: 0.4).
- * @param cellSize The size of each grid cell (default: {1.0, 1.0}).
- * @param maxIterations The maximal amount of refinement iterations (default: 50).
- * @param minMinSize The minimum for minSize in world coordinates (default: 0.2).
- */
-void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
-        std::vector<std::vector<flowFragment>> fragments,std::array<int, 2> gridSize, std::array<double, 2> cellSize = {1.0,1.0}, int maxIterations=60, double minSizeFactor=0.4);
-
-
-/**
- * @brief Detects flow fragments based on accumulation and direction raster data.
- * 
- * Identifies flow fragments by analyzing accumulation and direction data from raster datasets. 
- * The results include start and end points, as well as additional geometric details for 
- * each fragment.
- * 
- * @param accumulation_raster The raster dataset containing accumulation values.
- * @param direction_raster The raster dataset containing flow direction values.
- * @param cellSize The size of each grid cell in physical units.
- * @param gridSize The dimensions of the grid.
- * @param minAcc The minimum accumulation value for flow detection (default: 50).
- * @param maxAccDiff The maximum accumulation difference for flow detection (default: 200).
- * @param scaleDephtFactor The scaling factor to calculate flow depth from accumalation values(default: 5000).
- * @param scaleWidthFactor The scaling factor to calculate flow width from accumalation values(default: 500).
- * @param minWidth The minimum width of a flow fragment in worldcoordinates(default: 1.0).
- * @return std::vector<flowFragment> A vector of detected flow fragments.
- */
-std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, 
-                            std::array<double, 2> cellSize, std::array<int, 2> gridSize, double minAcc=50, double maxAccDiff=200, bool fixedWidth=true, double scaleDephtFactor=3000, 
-                            double scaleWidthFactor=100, double minWidth=1.0);
-
-double diagDistance(const Dune::FieldVector<double, 2> start, const Dune::FieldVector<double, 2> vec, const Dune::FieldVector<double, 2> point);
+                                    double minAcc = 50, double maxAccDiff = 200, bool fixedWidth = true, double scaleDephtFactor = 600, 
+                                    double scaleWidthFactor = 90, double minSizeFactor = 0.4, int maxIterations = 50, double minWidth = 1.0, double maxWidth = -1,
+                                    bool exactCalc = false);
 
 #endif // FLOWFUNCTIONS_HH

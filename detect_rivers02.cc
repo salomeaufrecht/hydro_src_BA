@@ -126,8 +126,8 @@ int main(int argc, char **argv)
       double ox = image.originLong();
       double oy = image.originLat();
       std::array<int, 2> N;
-      N[0] = 50; //1800
-      N[1] = 50; //1200
+      N[0] = 150; //1800
+      N[1] = 150; //1200
       std::array<double, 2> H;
       H[0] = 90; 
       H[1] = 90; 
@@ -141,15 +141,15 @@ int main(int argc, char **argv)
       auto gridp = std::make_shared<Grid>(L, N, std::bitset<2>(0ULL), 1);
 
       // now make raster canvas in cell-centered mode 
-      //auto elevation_raster    = RasterDataSet<float>           (99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
-      //auto accumulation_raster = RasterDataSet<float>           (99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
-      //auto direction_raster    = RasterDataSet<unsigned char>   (99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      auto elevation_raster    = RasterDataSet<float>           (99.4 + 0.5 * dx, 8.1 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
+      auto accumulation_raster = RasterDataSet<float>           (99.4 + 0.5 * dx, 8.1 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      auto direction_raster    = RasterDataSet<unsigned char>   (99.4 + 0.5 * dx, 8.1 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
       //auto elevation_raster    = RasterDataSet<float>         (99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
       //auto accumulation_raster = RasterDataSet<float>         (99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
       //auto direction_raster    = RasterDataSet<unsigned char> (99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
-      auto elevation_raster    = RasterDataSet<float>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
-      auto accumulation_raster = RasterDataSet<float>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
-      auto direction_raster    = RasterDataSet<unsigned char>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      //auto elevation_raster    = RasterDataSet<float>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
+      //auto accumulation_raster = RasterDataSet<float>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      //auto direction_raster    = RasterDataSet<unsigned char>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
       elevation_raster.paste(image);
       accumulation_raster.paste(aimage);
       direction_raster.paste(dimage); 
@@ -240,9 +240,9 @@ int main(int argc, char **argv)
     //elevation_raster = removeUpwardsRivers(accumulation_raster, direction_raster, elevation_raster, N);
     //std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
     //refineGridwithFragments(grid, rivers, 0.4, H, 50); 
-    std::vector<std::vector<flowFragment>> fragments = detectFragments(accumulation_raster, direction_raster, H, N, 50, 200, false);
+    std::vector<std::vector<flowFragment>> fragments = detectFragments(accumulation_raster, direction_raster, H, N, 50, 200, true);
     std::cout << "Start refining (might take a while)" << std::endl;
-    refineGridwithFragments(grid, fragments, N, H,50,  0.5);
+    refineGridwithFragments(grid, fragments, N, H,50,  0.5, false  );
     std::vector<double> height = overallHeight(gridView, elevation_raster, H, N);
     height= applyFlowHeightFragments(gridView, fragments, height, elevation_raster, H, N);
 

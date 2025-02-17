@@ -144,30 +144,36 @@ double calcDepht(double avgAccumulation, double scaleDephtFactor){
  * @param maxWidth The maximum allowed width if no value is provided it is set to cellSize..
  * @return std::pair<double, int> A pair containing the computed width and the maximum number of iterations.
  */
-std::pair<double, int> calcWidth(double avgAccumulation, std::array<double, 2> cellSize, std::array<double, 2> realCellSize, bool fixedWidth, int directionCategory,
+std::tuple<double, int, double> calcWidth(double avgAccumulation, std::array<double, 2> cellSize, std::array<double, 2> realCellSize, bool fixedWidth, int directionCategory,
                                 double scaleWidthFactor, double minWidth,  double maxWidth){
 
     if (maxWidth < 0) maxWidth = (cellSize[0]+cellSize[1])/2;
     double width = avgAccumulation/(scaleWidthFactor); //width of flow in cells
 
     int maxIterationsFragment = 10000;
+    double minSize = -1;
+
 
     if(fixedWidth){   
         if (avgAccumulation < 500){
             width = 9.6;
             maxIterationsFragment = 6 + int(directionCategory==3);
+            minSize = 2;
         }
         else if (avgAccumulation < 2500) {
             width = 46.3;
-            maxIterationsFragment = 2 + int(directionCategory==3)*2;
+            maxIterationsFragment = 2 + int(directionCategory==3)*3;
+            minSize = 4;
             }
         else if (avgAccumulation < 5000){ 
             width = 65.5;
             maxIterationsFragment = 1 + int(directionCategory==1 || directionCategory==2)*3;
+            minSize = 5;
         }
         else {
             width = 90;
-            maxIterationsFragment = 2;
+            maxIterationsFragment = 4;
+            minSize = 5;
         }
     }
     else{
@@ -175,8 +181,9 @@ std::pair<double, int> calcWidth(double avgAccumulation, std::array<double, 2> c
         width = std::min(maxWidth, width); //max width realCellSize
         width = std::max(minWidth, width); //min width
     }
+    
     width = width/cellSize[0] * realCellSize[0];
-    return {width, maxIterationsFragment};
+    return {width, maxIterationsFragment, minSize};
 }
 
 /**
@@ -223,19 +230,19 @@ int selectBox( std::vector<Dune::FieldVector<double, 2>> corners, int xBisector,
         return box;
     }
     for (auto c : corners){
-                if(c[0] == xBisector) continue;
-                if(c[0] > xBisector){
-                    box += 2;
-                }
-                break;
-            }
-            for (auto c : corners){
-                if(c[1] == yBisector) continue;
-                if(c[1] > yBisector){
-                    box += 1;
-                }
-                break;
-            }
+        if(c[0] == xBisector) continue;
+        if(c[0] > xBisector){
+            box += 2;
+        }
+        break;
+    }
+    for (auto c : corners){
+        if(c[1] == yBisector) continue;
+        if(c[1] > yBisector){
+            box += 1;
+        }
+        break;
+    }
     return box;
 }
 
@@ -301,9 +308,11 @@ std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accu
 
                 double avgAccumulation = (accStart+accEnd)/2;
                 double depht = calcDepht(avgAccumulation, scaleDephtFactor);
-                std::pair<double, int> widthAndIterations = calcWidth(avgAccumulation, cellSize, realCellSize, fixedWidth, directionCategory, scaleWidthFactor, minWidth, maxWidth);
-                double width = widthAndIterations.first;
-                int maxIterationsFragment = widthAndIterations.second;
+                
+                std::tuple<double, int, double> widthInfo = calcWidth(avgAccumulation, cellSize, realCellSize, fixedWidth, directionCategory, scaleWidthFactor, minWidth, maxWidth);
+                double width =std::get<0>(widthInfo);
+                int maxIterationsFragment = std::get<1>(widthInfo);
+                double minSize = std::get<2>(widthInfo);
 
                 Dune::FieldVector<double, 2> shift = {0.5, 0.5}; //fragments should start in middle of cell
                 startWorld = Dune::FieldVector<double, 2>(start)+shift;
@@ -314,7 +323,7 @@ std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accu
                 endWorld = convertToGlobalCoordinates(endWorld, cellSize, realCellSize);
                 //std::cout << width << std::endl;
                 
-                flowFragment f = {startWorld, endWorld, width, width, depht, maxIterationsFragment, directionCategory}; 
+                flowFragment f = {startWorld, endWorld, width, width, depht, maxIterationsFragment, directionCategory, minSize}; 
 
                 int boxStart = selectBox({start}, xBisector, yBisector);
                 int boxEnd = selectBox({end}, xBisector, yBisector);
@@ -402,6 +411,7 @@ std::vector<fragmentBoundaries> calcFragmentBoundaries(std::vector<flowFragment>
     std::vector<fragmentBoundaries> fragmentsBoundaries;
 
     for (auto f : fragments){ //store relevant information for each fragment so that it needs to be computed only once
+
         if(f.end==f.start){
             std::cerr << "Flow without end" << std::endl; //debug message
             f.end[0] -=0.01;
@@ -429,7 +439,9 @@ std::vector<fragmentBoundaries> calcFragmentBoundaries(std::vector<flowFragment>
         double minY = std::min({start1[1], start2[1], end1[1], end2[1]});
         double maxY = std::max({start1[1], start2[1], end1[1], end2[1]});
 
+
         double minSize =  minSizeFactor*std::min(f.widthStart, f.widthEnd);
+        if(f.minSize > 0) minSize = f.minSize;
 
         fragmentBoundaries fB = fragmentBoundaries{start1, start2, b1, b2, minX, maxX, minY, maxY, normalFlowVector, f.direction, minSize, f.depht, f.maxIterationsFragment};
         fragmentsBoundaries.push_back(fB);
@@ -490,6 +502,7 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
     const GridView gridView = grid->leafGridView();
 
     std::array<double, 2> realCellSize = calcRealCellSize(cellSize, gridSize);
+    //realCellSize = {90.0, 90.0}; //TODO remove
 
     Dune::FieldVector<double, 2> bisectors = convertToGlobalCoordinates({std::floor(gridSize[0]/2), std::floor(gridSize[0]/2)}, cellSize, realCellSize);
     double xBisector = bisectors[0];
@@ -513,6 +526,7 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
             for(int i = 0; i < 3; i++){
                 corners.push_back(element.geometry().corner(i));
             }
+
             
             int box = selectBox(corners, xBisector, yBisector);
             
@@ -529,12 +543,12 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
                 bool continueFragment = false;
                 int xOut = 0;
                 int yOut = 0;
+
                 
                 for (int i = 0; i < 3; i++){
                     auto cornerI =corners[i];
-
-                    if (cornerI[0] < fB.minX-realCellSize[0] || cornerI[0] > fB.maxX+realCellSize[0] || cornerI[1] < fB.minY-realCellSize[1] ||
-                            cornerI[1] > fB.maxY+realCellSize[1]){  //element too far away
+                    if (cornerI[0] < fB.minX-realCellSize[0]-0.1 || cornerI[0] > fB.maxX+realCellSize[0]+0.1 || cornerI[1] < fB.minY-realCellSize[1]-0.1 ||
+                            cornerI[1] > fB.maxY+realCellSize[1]+0.1){  //element too far away
                         continueFragment = true; 
                         break;
                     }
@@ -569,7 +583,7 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
                 }
 
 
-                if(continueFragment || std::abs(xOut) == 3 || std::abs(yOut) == 3 || between + onSide1 + onSide2 <= 1){continue;} // all 3 corners outside x/y boundary or element too far away or flow not trough element
+                if(continueFragment || std::abs(xOut) == 3 || std::abs(yOut) == 3 || between + onSide1 + onSide2 <= 1){continue; } // all 3 corners outside x/y boundary or element too far away or flow not trough element
 
                 if(onSide1+onSide2==2) { //whole flow inside triangle
                     grid->mark(1, element); 

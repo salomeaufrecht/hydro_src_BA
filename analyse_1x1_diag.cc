@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
         // Start with a structured grid
     const std::array<unsigned, 2> n = {1, 1};
     const FieldVector<double, 2> lower = {0, 0};
-    const FieldVector<double, 2> upper = {1, 1};
+    const FieldVector<double, 2> upper = {90, 90};
 
 
     std::ofstream outFile("test_log_diag.txt");
@@ -51,8 +51,8 @@ int main(int argc, char *argv[])
      outTable << " \\\\" << std::endl << "\\hline" << std::endl;
 
             
-    for(int w = 1; w<6; w++){
-        double width = w/10.0;
+    for(int w = 1; w<90; w+=5){
+        double width = w; ///10.0;
 
         outTable << width;
         for(double msf : minSizeFactors){
@@ -61,10 +61,12 @@ int main(int argc, char *argv[])
 
             const GridView gridView01 = grid01->leafGridView();
             
-            flowFragment f01 = {Dune::FieldVector<double, 2>{0, 0}, Dune::FieldVector<double, 2>{1, 1}, width};
+            flowFragment f01 = {Dune::FieldVector<double, 2>{0, 0}, Dune::FieldVector<double, 2>{90, 90}, width, width, 1, 1000, 3};
             std::vector<flowFragment> fragments01 = {f01};
 
-            refineGridwithFragments(grid01, fragments01, msf, {1.0, 1.0});
+            std::vector<std::vector<flowFragment>> rivers = {fragments01, fragments01, fragments01, fragments01};
+
+            refineGridwithFragments(grid01, rivers,{1, 1}, {90, 90}, 50, msf, true);
         
                 
             std::string name = "1x1grid_diag_w_"+ std::to_string(width) + "_msf_" + std::to_string(msf);

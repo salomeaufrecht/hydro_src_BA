@@ -13,6 +13,7 @@
 #include <dune/alugrid/dgf.hh>
 #include <iostream>
 #include <dune/hydro/rasterdataset.hh>
+#include <tuple>
 
 #include <array>
 
@@ -32,8 +33,9 @@ struct flowFragment
     double widthStart;                    ///< Width of the flow at the starting point.
     double widthEnd = -1;                 ///< Width of the flow at the endpoint (default: -1 means same as start).
     double depht = -2;                    ///< Depth of the flow (default: -2 means no value).
-    int maxIterationsFragment = 50;               ///< Maximum number of iterations for refinement.
+    int maxIterationsFragment = 1000;     ///< Maximum number of iterations for refinement.
     int direction = 0;                     ///< Direction of the fragment (0: any, 1: horizontal, 2: vertical, 3: diagonal).	
+    double minSize = -1;               ///< Minimum size of the fragment for refinement purposes.
     bool operator<(const flowFragment& f) const{
         return start[0] < f.start[0] || (start[0] == f.start[0] && start[1] < f.start[1]);
     }
@@ -88,10 +90,11 @@ std::array<double, 2> calcRealCellSize(std::array<double, 2> cellSize, std::arra
  * @param gridSize The dimensions of the grid.
  * @param minAcc The minimum accumulation threshold for detecting fragments (default: 50).
  * @param maxAccDiff The maximum allowed difference in accumulation within a fragment (default: 200).
+ * @param fixedWidth Whether to use a fixed width for all fragments (default: true).
  * @param scaleDephtFactor The scaling factor to calculate flow depth from accumalation values(default: 600).
  * @param scaleWidthFactor The scaling factor to calculate flow width from accumalation values(default: 90).
  * @param minWidth The minimum allowed width of a fragment (default: 1.0).
- * * @param maxWidth The maximum allowed width of a fragment (default: -1 which means cellSize).
+ * @param maxWidth The maximum allowed width of a fragment (default: -1 which means cellSize).
  * @return std::vector<flowFragment> A vector of detected flow fragments grouped in bounding boxes.
  */
 std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, 
@@ -116,7 +119,6 @@ std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accu
 void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
         std::vector<std::vector<flowFragment>> fragments,std::array<int, 2> gridSize, std::array<double, 2> cellSize = {90.0, 90.0}, int maxIterations=50, 
         double minSizeFactor=0.4, bool exactCalc = false);
-
 
 /**
  * @brief Applies height values to all vertices in the grid.

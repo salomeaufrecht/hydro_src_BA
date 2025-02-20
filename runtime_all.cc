@@ -129,7 +129,7 @@ int main(int argc, char **argv)
       std::vector<double> runtime_overallHeight;
       std::vector<double> runtime_applyFlowHeightFragments;
 
-      for(int i = 5; i < 450; i+=6){
+      for(int i = 5; i < 600; i+=8){
             
         N[0] = i;
         N[1] = i;
@@ -137,12 +137,17 @@ int main(int argc, char **argv)
         L[1] = N[1] * H[1];
         std::cout << i << std::endl;
 
-        auto elevation_raster = RasterDataSet<float>(99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
-        elevation_raster.paste(image);
-        auto accumulation_raster = RasterDataSet<float>(99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
-        accumulation_raster.paste(aimage);
-        auto direction_raster = RasterDataSet<unsigned char>(99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
-        direction_raster.paste(dimage);
+        //was 9.04, 8.11
+
+      auto elevation_raster    = RasterDataSet<float>         (99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
+      auto accumulation_raster = RasterDataSet<float>         (99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      auto direction_raster    = RasterDataSet<unsigned char> (99.0 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      //auto elevation_raster    = RasterDataSet<float>         (99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
+      //auto accumulation_raster = RasterDataSet<float>         (99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      //auto direction_raster    = RasterDataSet<unsigned char> (99.405 + 0.5 * dx, 8.11 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      elevation_raster.paste(image);
+      accumulation_raster.paste(aimage);
+      direction_raster.paste(dimage);
 
         // create grid
         typedef Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming > Grid_;
@@ -162,7 +167,7 @@ int main(int argc, char **argv)
 
 
         Dune::Timer timerRefine;  // Timer starten
-        refineGridwithFragments(grid, rivers,N, 0.5, H); 
+        refineGridwithFragments(grid, rivers,N,H); 
         double elapsedTimeRefine = timerRefine.stop();  // Stoppe den Timer und bekomme die Zeit in Sekunden
         
         Dune::Timer timerOverallHeight;  // Timer starten

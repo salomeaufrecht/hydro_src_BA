@@ -1,11 +1,12 @@
 #include "flowFunctions.hh"
 
 /**
- * @brief Actual size of the grid cell.
+ * @brief Calculates the real cell size based on the grid size and cell size.
  * 
  * @param cellSize The input size of each grid cell.
  * @param gridSize The dimensions of the grid.
- * @return std::array<double, 2> 
+ * 
+ * @return std::array<double, 2> The actual size of each grid cell.
  */
 std::array<double, 2> calcRealCellSize(std::array<double, 2> cellSize, std::array<int, 2> gridSize){
     return {cellSize[0] * (gridSize[0]-1)/gridSize[0], cellSize[1] * (gridSize[1]-1)/gridSize[1]};
@@ -502,7 +503,6 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
     const GridView gridView = grid->leafGridView();
 
     std::array<double, 2> realCellSize = calcRealCellSize(cellSize, gridSize);
-    //realCellSize = {90.0, 90.0}; //TODO remove
 
     Dune::FieldVector<double, 2> bisectors = convertToGlobalCoordinates({std::floor(gridSize[0]/2), std::floor(gridSize[0]/2)}, cellSize, realCellSize);
     double xBisector = bisectors[0];
@@ -636,6 +636,7 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
         grid->postAdapt();            
          
     }
+    std::cout << std::endl;
 }
 
 

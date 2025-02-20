@@ -107,9 +107,6 @@ int main(int argc, char **argv)
         ptreeparser.readINITree("nakhon.ini", ptree);
         ptreeparser.readOptions(argc, argv, ptree);
 
-        // Nakhonsitamarat
-        if (true)
-        {
         // read data files
         GeoTIFFImage<GInt16> image("n00e090_con.tif", "", 1, 2);
         GeoTIFFImage<GUInt32> aimage("N00E090_acc.tif", "", 1, 2);
@@ -119,8 +116,8 @@ int main(int argc, char **argv)
         double dy = std::abs(image.dLat());
 
         std::array<int, 2> N;
-        N[0] = 3;
-        N[1] = 3;
+        N[0] = 30;
+        N[1] = 30;
         std::array<double, 2> H;
         H[0] = 90; 
         H[1] = 90; 
@@ -148,18 +145,10 @@ int main(int argc, char **argv)
         GridView gridView = grid->leafGridView();
 
         // compute rivers and add them to the map
-
-        std::array<double, 2> cellSize = calcRealCellSize(H, N);
-        elevation_raster = removeUpwardsRivers(accumulation_raster, direction_raster, elevation_raster, N);
-
-        std::vector<std::vector<flowFragment>> fragments = detectFragments(accumulation_raster, direction_raster, H, N);
-        //flowFragment f01 = {Dune::FieldVector<double, 2>{45, 225}, Dune::FieldVector<double, 2>{225, 45}, sqrt(2)*15.0};
-        //std::vector<std::vector<flowFragment>> f1 =  {{f01}, {f01}, {f01}, {f01}};
-        refineGridwithFragments(grid, fragments, N, 0.5, H);
-    
+        std::vector<std::vector<flowFragment>> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
+        refineGridwithFragments(grid, rivers, N, H);
         std::vector<double> height = overallHeight(gridView, elevation_raster, H, N);
-
-        height= applyFlowHeightFragments(gridView, fragments, height, elevation_raster, H, N);
+        height= applyFlowHeightFragments(gridView, rivers, height, elevation_raster, H, N);
 
 
         // write result to file
@@ -167,7 +156,7 @@ int main(int argc, char **argv)
         vtkWriter.addVertexData(height, "height");
         vtkWriter.write("mapWithRefinedRivers_ex");
 
-    }
+    
       return 0;
   }
   catch (Dune::Exception &e)

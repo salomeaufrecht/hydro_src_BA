@@ -23,8 +23,6 @@
  *        as well as optional parameters for width and depth.
  * 
  * The struct defines a flow fragment in terms of its geometric properties. 
- * `widthEnd` and `depht` are optional parameters with default values, used to 
- * define the fragment's width and depth where applicable.
  */
 struct flowFragment
 {
@@ -66,15 +64,6 @@ struct fragmentBoundaries{
     double depht = 1;                      ///< Depth of the flow fragment.
     int maxIterationsFragment = 50;               ///< Maximum number of iterations for refinement.
 };
-
-/**
- * @brief Calculates the real cell size based on the grid size and cell size.
- * 
- * @param cellSize The selected size of each grid cell.
- * @param gridSize The dimensions of the grid.
- * @return std::array<double, 2> The actual size of each grid cell.
- */
-std::array<double, 2> calcRealCellSize(std::array<double, 2> cellSize, std::array<int, 2> gridSize);
 
 
 /**
@@ -126,10 +115,10 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
  * Modifies the height vector for the grid vertices by incorporating elevation data from 
  * a raster dataset.
  * 
- * @param grid The ALUGrid representing the map.
- * @param height A vector of height values for each vertex (updated in this function).
+ * @param gridView The gridview of the ALUGrid representing the map.
  * @param elevation_raster The elevation raster dataset containing height values.
  * @param cellSize The size of each cell in the grid.
+ * @param gridSize The dimensions of the grid.
  * @return std::vector<double> The updated height values.
  */
 std::vector<double> overallHeight(const Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
@@ -141,8 +130,8 @@ std::vector<double> overallHeight(const Dune::ALUGrid< 2, 2, Dune::simplex, Dune
  * Updates the height values for vertices in the grid based on the depth of the flow fragments. 
  * The height value for each affected vertex is substracted by `depht`.
  * 
- * @param grid The ALUGrid representing the map.
- * @param fragments A vector containing all flow fragments.
+ * @param grid The gridview of the ALUGrid representing the map.
+ * @param fragments A vector containing all flow fragments grouped by bounding box.
  * @param height A vector of height values for each vertex, modified in this function.
  * @param elevation_raster The elevation raster dataset for reference.
  * @param cellSize The size of each cell in the grid.
@@ -164,14 +153,15 @@ std::vector<double> applyFlowHeightFragments(const Dune::ALUGrid< 2, 2, Dune::si
  * @param accumulation_raster The raster dataset containing accumulation values.
  * @param direction_raster The raster dataset containing flow direction values.
  * @param elevation_raster The raster dataset containing elevation values.
- * @param minSizeFactor The minimum size factor for refinement (default: 0.4).
  * @param minAcc The minimum accumulation value for flow detection (default: 50).
  * @param maxAccDiff The maximum accumulation difference for flow detection (default: 200).
+ * @param fixedWidth Whether to use a fixed width for all fragments (default: true).
  * @param scaleDephtFactor The scaling factor to calculate flow depth from accumulation values (default: 400).
  * @param scaleWidthFactor The scaling factor to calculate flow width from accumulation values (default: 5000).
+ * @param minSizeFactor The minimum size factor for refinement (default: 0.4).
  * @param maxIterations The maximal amount of refinement iterations (default: 50).
  * @param minWidth The minimum width of a flow fragment in world coordinates (default: 1.0).
- * @param minMinSize The minimum for minSize in world coordinates (default: 0.2).
+ * @param exactCalc Whether to use exact calculations for the fragment width (default: false).
  * @return std::vector<double> 
  */
 std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid,

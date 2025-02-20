@@ -36,6 +36,8 @@ int main(int argc, char *argv[])
     std::ofstream outFile("test_log_diag.txt");
     std::ofstream outTable("test_table_diag.txt");
 
+    std::vector<int> amountElements1(300, 0);
+
     
     outTable << "\\begin{tabular}{ c |" ;
     std::vector<double> minSizeFactors;
@@ -50,18 +52,19 @@ int main(int argc, char *argv[])
     }
      outTable << " \\\\" << std::endl << "\\hline" << std::endl;
 
-            
+    int pos = 0;
     for(int w = 1; w<90; w+=5){
         double width = w; ///10.0;
 
         outTable << width;
         for(double msf : minSizeFactors){
+            pos++;
             
             std::shared_ptr<Grid> grid01 = StructuredGridFactory<Grid>::createSimplexGrid(lower, upper, n);
 
             const GridView gridView01 = grid01->leafGridView();
             
-            flowFragment f01 = {Dune::FieldVector<double, 2>{0, 0}, Dune::FieldVector<double, 2>{90, 90}, width, width, 1, 1000, 3};
+            flowFragment f01 = {Dune::FieldVector<double, 2>{-90, 180}, Dune::FieldVector<double, 2>{180, -90}, width, width, 1, 1000, 3};
             std::vector<flowFragment> fragments01 = {f01};
 
             std::vector<std::vector<flowFragment>> rivers = {fragments01, fragments01, fragments01, fragments01};
@@ -76,7 +79,9 @@ int main(int argc, char *argv[])
                 counter++;
             }
 
-            outFile << "Breite: " << width << ", minSIzeFactor: " << msf << ": " << counter << " elements" << std::endl;
+            amountElements1[pos] = counter;
+
+            outFile << "Breite: " << width << ", minSizeFactor: " << msf << ": " << counter << " elements" << std::endl;
             outTable << " & " << counter;
             // Write grid to file
 
@@ -84,6 +89,110 @@ int main(int argc, char *argv[])
             vtkWriter.write(name);
         }
         outFile << std::endl;
+        outTable << " \\\\" << std::endl;
+    }
+
+    outTable << std::endl << std::endl << std::endl;
+
+        const std::array<unsigned, 2> n2 = {2, 1};
+    const FieldVector<double, 2> lower2 = {0, 0};
+    const FieldVector<double, 2> upper2 = {180, 90};
+
+    std::vector<int> amountElements2(300, 0);
+
+    outTable << "\\begin{tabular}{ c |" ;
+    for( int i = 0; i < minSizeFactors.size(); i++){
+   
+        outTable << " c";
+    }
+    outTable << " }" << std::endl;
+    for(double msf :minSizeFactors){
+        outTable << " & " << msf;
+    }
+     outTable << " \\\\" << std::endl << "\\hline" << std::endl;
+
+    pos = 0;
+    for(int w = 1; w<90; w+=5){
+        double width = w; ///10.0;
+
+        //outTable << width;
+        for(double msf : minSizeFactors){
+            pos++;
+            
+            std::shared_ptr<Grid> grid01 = StructuredGridFactory<Grid>::createSimplexGrid(lower2, upper2, n2);
+
+            const GridView gridView01 = grid01->leafGridView();
+            
+            flowFragment f01 = {Dune::FieldVector<double, 2>{-90, 180}, Dune::FieldVector<double, 2>{180, -90}, width, width, 1, 1000, 3};
+            std::vector<flowFragment> fragments01 = {f01};
+
+            std::vector<std::vector<flowFragment>> rivers = {fragments01, fragments01, fragments01, fragments01};
+
+            refineGridwithFragments(grid01, rivers,{2, 1}, {90, 90}, 50, msf, true);
+        
+                
+            //std::string name = "1x1grid_diag_w_"+ std::to_string(width) + "_msf_" + std::to_string(msf);
+
+            int counter=0;
+            for(auto element : elements(gridView01)){
+                counter++;
+            }
+
+            amountElements2[pos] = counter - amountElements1[pos];
+
+            //outFile << "Breite: " << width << ", minSizeFactor: " << msf << ": " << counter << " elements" << std::endl;
+            //outTable << "+" << amountElements2[pos];
+            // Write grid to file
+
+            //VTKWriter<GridView> vtkWriter(gridView01);
+            //vtkWriter.write(name);
+        }
+        //outFile << std::endl;
+        //outTable << " \\\\" << std::endl;
+    }
+
+    const std::array<unsigned, 2> n4 = {2, 2};
+    const FieldVector<double, 2> lower4 = {0, 0};
+    const FieldVector<double, 2> upper4 = {180, 180};
+
+    pos = 0;
+
+    for(int w = 1; w<90; w+=5){
+        double width = w; ///10.0;
+
+        outTable << width;
+        for(double msf : minSizeFactors){
+            pos++;
+            
+            std::shared_ptr<Grid> grid01 = StructuredGridFactory<Grid>::createSimplexGrid(lower4, upper4, n4);
+
+            const GridView gridView01 = grid01->leafGridView();
+            
+            flowFragment f01 = {Dune::FieldVector<double, 2>{-90, 180}, Dune::FieldVector<double, 2>{180, -90}, width, width, 1, 1000, 3};
+            std::vector<flowFragment> fragments01 = {f01};
+
+            std::vector<std::vector<flowFragment>> rivers = {fragments01, fragments01, fragments01, fragments01};
+
+            refineGridwithFragments(grid01, rivers,{2, 2}, {90, 90}, 50, msf, true);
+        
+                
+            std::string name = "4x4_w_"+ std::to_string(width) + "_msf_" + std::to_string(msf);
+
+            int counter=0;
+            for(auto element : elements(gridView01)){
+                counter++;
+            }
+
+            //amountElements2[pos] = counter - amountElements1[pos];
+
+            //outFile << "Breite: " << width << ", minSizeFactor: " << msf << ": " << counter << " elements" << std::endl;
+            outTable <<" & " << amountElements1[pos] << "+" << 2*amountElements2[pos] << "/" << 2*(counter - 2*amountElements2[pos] - amountElements1[pos]);
+            // Write grid to file
+
+            VTKWriter<GridView> vtkWriter(gridView01);
+            vtkWriter.write(name);
+        }
+        //outFile << std::endl;
         outTable << " \\\\" << std::endl;
     }
 

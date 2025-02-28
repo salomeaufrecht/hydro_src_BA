@@ -106,7 +106,7 @@ std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accu
  * @param exactCalc Whether to use exact calculations for the fragment width (default: false).
  */
 void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid, 
-        std::vector<std::vector<flowFragment>> fragments,std::array<int, 2> gridSize, std::array<double, 2> cellSize = {90.0, 90.0}, int maxIterations=50, 
+        std::vector<std::vector<flowFragment>> fragments, std::array<int, 2> gridSize, std::array<double, 2> cellSize = {90.0, 90.0}, int maxIterations=50, 
         double minSizeFactor=0.4, bool exactCalc = false);
 
 /**
@@ -130,7 +130,7 @@ std::vector<double> overallHeight(const Dune::ALUGrid< 2, 2, Dune::simplex, Dune
  * Updates the height values for vertices in the grid based on the depth of the flow fragments. 
  * The height value for each affected vertex is substracted by `depht`.
  * 
- * @param grid The gridview of the ALUGrid representing the map.
+ * @param gridView The gridview of the ALUGrid representing the map.
  * @param fragments A vector containing all flow fragments grouped by bounding box.
  * @param height A vector of height values for each vertex, modified in this function.
  * @param elevation_raster The elevation raster dataset for reference.

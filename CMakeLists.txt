@@ -95,10 +95,10 @@
 #target_link_libraries(detect_rivers01 PUBLIC GDAL::GDAL)
 #target_link_libraries(detect_rivers01 PUBLIC NetCDF::NetCDF)
 
-add_executable("detect_rivers02" detect_rivers02.cc flowFunctions.cc flowFunctions.hh)
-target_link_dune_default_libraries(detect_rivers02)
-target_link_libraries(detect_rivers02 PUBLIC GDAL::GDAL)
-target_link_libraries(detect_rivers02 PUBLIC NetCDF::NetCDF)
+#add_executable("detect_rivers02" detect_rivers02.cc flowFunctions.cc flowFunctions.hh)
+#target_link_dune_default_libraries(detect_rivers02)
+#target_link_libraries(detect_rivers02 PUBLIC GDAL::GDAL)
+#target_link_libraries(detect_rivers02 PUBLIC NetCDF::NetCDF)
 
 #add_executable("detectRivers_countFragmetns" detectRivers_countFragmetns.cc flowFunctions.cc flowFunctions.hh)
 #target_link_dune_default_libraries(detectRivers_countFragmetns)

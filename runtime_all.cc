@@ -129,7 +129,7 @@ int main(int argc, char **argv)
       std::vector<double> runtime_overallHeight;
       std::vector<double> runtime_applyFlowHeightFragments;
 
-      for(int i = 5; i < 600; i+=8){
+      for(int i = 5; i < 1500; i+=15){
             
         N[0] = i;
         N[1] = i;
@@ -154,8 +154,8 @@ int main(int argc, char **argv)
         using GridView = Grid_::LeafGridView;
           
         const std::array<unsigned, 2> n_ = {N[0], N[1]};
-        const Dune::FieldVector<double, 2> lower = {0.5 * H[0], 0.5 * H[1]};
-        const Dune::FieldVector<double, 2> upper = {L[0] - 0.5 * H[0], L[1] - 0.5 * H[1]};
+        const Dune::FieldVector<double, 2> lower = {0, 0};
+        const Dune::FieldVector<double, 2> upper = {L[0], L[1] };
         std::shared_ptr<Grid_> grid = Dune::StructuredGridFactory<Grid_>::createSimplexGrid(lower, upper, n_);
         const GridView gridView = grid->leafGridView();
 
@@ -184,37 +184,40 @@ int main(int argc, char **argv)
         runtime_overallHeight.push_back(elapsedTimeOverallHeight);
         runtime_applyFlowHeightFragments.push_back(elapsedTimeApplyFlowHeightFragments);
 
+
+        std::cout << std::endl << "size = [ " << size[0] ;
+        for (auto s : size){
+            std::cout << ", " << s;
+        }
+        std::cout << "]" << std::endl;
+
+        std::cout << "detectFragments = [" << runtime_detectFragments[0] ;
+        for (auto r : runtime_detectFragments){
+            std::cout << ", "<< r ;
+        }
+        std::cout << "]" << std::endl;
+
+        std::cout << "refineGrid = [" << runtime_refineGrid[0] ;
+        for (auto r : runtime_refineGrid){
+            std::cout << ", "<< r ;
+        }
+        std::cout << "]" << std::endl;
+
+        std::cout << "overallHeight = [" << runtime_overallHeight[0] ;
+        for (auto r : runtime_overallHeight){
+            std::cout << ", "<< r ;
+        }
+        std::cout << "]" << std::endl;
+
+        std::cout << "applyFlowHeightFragments = [" << runtime_applyFlowHeightFragments[0] ;
+        for (auto r : runtime_applyFlowHeightFragments){
+            std::cout << ", "<< r ;
+        }
+        std::cout << "]" << std::endl;
+        
         }
 
-      std::cout << std::endl << "size = [ " << size[0] ;
-      for (auto s : size){
-          std::cout << ", " << s;
-      }
-      std::cout << "]" << std::endl;
-
-      std::cout << "detectFragments = [" << runtime_detectFragments[0] ;
-      for (auto r : runtime_detectFragments){
-          std::cout << ", "<< r ;
-      }
-      std::cout << "]" << std::endl;
-
-      std::cout << "refineGrid = [" << runtime_refineGrid[0] ;
-      for (auto r : runtime_refineGrid){
-          std::cout << ", "<< r ;
-      }
-      std::cout << "]" << std::endl;
-
-      std::cout << "overallHeight = [" << runtime_overallHeight[0] ;
-      for (auto r : runtime_overallHeight){
-          std::cout << ", "<< r ;
-      }
-      std::cout << "]" << std::endl;
-
-      std::cout << "applyFlowHeightFragments = [" << runtime_applyFlowHeightFragments[0] ;
-      for (auto r : runtime_applyFlowHeightFragments){
-          std::cout << ", "<< r ;
-      }
-      std::cout << "]" << std::endl;
+    
 
       
       std::cout << std::endl << "plt.plot(size, detectFragmetents, \"-\", label = \"time detectFragments\")" << std::endl;

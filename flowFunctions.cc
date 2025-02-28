@@ -1,16 +1,5 @@
 #include "flowFunctions.hh"
 
-/**
- * @brief Calculates the real cell size based on the grid size and cell size.
- * 
- * @param cellSize The input size of each grid cell.
- * @param gridSize The dimensions of the grid.
- * 
- * @return std::array<double, 2> The actual size of each grid cell.
- */
-std::array<double, 2> calcRealCellSize(std::array<double, 2> cellSize, std::array<int, 2> gridSize){
-    return {cellSize[0] * (gridSize[0]-1)/gridSize[0], cellSize[1] * (gridSize[1]-1)/gridSize[1]};
-}
 
 /**
  * @brief Calculates the squared distance between two points.
@@ -33,16 +22,14 @@ double squaredDistance(const Dune::FieldVector<double, 2>& p1, const Dune::Field
  * specified scaling factors and offsets.
  * 
  * @param rasterCoord The raster coordinates.
- * @param realCellSize The size of the grid cell in each dimension.
  * @param cellSize The size of the grid cell in each dimension.
  * 
  * @return Dune::FieldVector<double, 2> The corresponding global coordinates.
  */
-Dune::FieldVector<double, 2> convertToGlobalCoordinates(const Dune::FieldVector<double, 2>& rasterCoord, const std::array<double, 2>& cellSize, 
-                                                        const std::array<double, 2>& realCellSize) {
+Dune::FieldVector<double, 2> convertToGlobalCoordinates(const Dune::FieldVector<double, 2>& rasterCoord, const std::array<double, 2>& cellSize) {
     Dune::FieldVector<double, 2> globalCoord;
-    globalCoord[0] = rasterCoord[0] * realCellSize[0] + cellSize[0]/2;
-    globalCoord[1] = rasterCoord[1] * realCellSize[1] + cellSize[1]/2;
+    globalCoord[0] = rasterCoord[0] * cellSize[0];
+    globalCoord[1] = rasterCoord[1] * cellSize[1];
     return globalCoord;
 }
 
@@ -53,14 +40,12 @@ Dune::FieldVector<double, 2> convertToGlobalCoordinates(const Dune::FieldVector<
  * 
  * @param globalCoord The global coordinates.
  * @param cellSize The size of the grid cell in each dimension.
- * @param realCellSize The actual cell size.
  * @return Dune::FieldVector<double, 2> The corresponding raster coordinates.
  */
-Dune::FieldVector<double, 2> convertToRasterCoordinates(const Dune::FieldVector<double, 2>& globalCoord, const std::array<double, 2>& cellSize, 
-                                                            const std::array<double, 2>& realCellSize) {
+Dune::FieldVector<double, 2> convertToRasterCoordinates(const Dune::FieldVector<double, 2>& globalCoord, const std::array<double, 2>& cellSize) {
     Dune::FieldVector<double, 2> rasterCoord;
-    rasterCoord[0] = (globalCoord[0] - cellSize[0]/2)/(realCellSize[0]);
-    rasterCoord[1] = (globalCoord[1] - cellSize[1]/2)/(realCellSize[1]);
+    rasterCoord[0] = globalCoord[0] / cellSize[0]; 
+    rasterCoord[1] = globalCoord[1] / cellSize[1]; 
     return rasterCoord;
 }
 
@@ -137,7 +122,6 @@ double calcDepht(double avgAccumulation, double scaleDephtFactor){
  * 
  * @param avgAccumulation The average accumulation value.
  * @param cellSize The size of a cell in the grid.
- * @param realCellSize The actual size of a cell.
  * @param fixedWidth Whether a fixed width should be applied.
  * @param directionCategory The category of the flow direction.
  * @param scaleWidthFactor The factor used to scale the width.
@@ -145,7 +129,7 @@ double calcDepht(double avgAccumulation, double scaleDephtFactor){
  * @param maxWidth The maximum allowed width if no value is provided it is set to cellSize..
  * @return std::pair<double, int> A pair containing the computed width and the maximum number of iterations.
  */
-std::tuple<double, int, double> calcWidth(double avgAccumulation, std::array<double, 2> cellSize, std::array<double, 2> realCellSize, bool fixedWidth, int directionCategory,
+std::tuple<double, int, double> calcWidth(double avgAccumulation, std::array<double, 2> cellSize, bool fixedWidth, int directionCategory,
                                 double scaleWidthFactor, double minWidth,  double maxWidth){
 
     if (maxWidth < 0) maxWidth = (cellSize[0]+cellSize[1])/2;
@@ -179,11 +163,10 @@ std::tuple<double, int, double> calcWidth(double avgAccumulation, std::array<dou
     }
     else{
         width = avgAccumulation/(scaleWidthFactor); 
-        width = std::min(maxWidth, width); //max width realCellSize
+        width = std::min(maxWidth, width); //max width cellSize
         width = std::max(minWidth, width); //min width
     }
     
-    width = width/cellSize[0] * realCellSize[0];
     return {width, maxIterationsFragment, minSize};
 }
 
@@ -193,16 +176,15 @@ std::tuple<double, int, double> calcWidth(double avgAccumulation, std::array<dou
  * @param rivers A vector of vector of flow fragments representing the river network (divided in bouniding boxes).
  * @param skip A vector indicating which cells should be skipped.
  * @param cellSize The size of a grid cell.
- * @param realCellSize The real-world size of a cell.
  * @param gridSize The size of the grid.
  * @return std::vector<std::vector<flowFragment>> The cleaned river network with skippable fragments removed.
  */
 std::vector<std::vector<flowFragment>> deleteSkippableFragments (std::vector<std::vector<flowFragment>> rivers, std::vector<int> skip, 
-                                                                std::array<double, 2> cellSize, std::array<double, 2> realCellSize, std::array<int, 2> gridSize){
+                                                                std::array<double, 2> cellSize, std::array<int, 2> gridSize){
     for(int i = 0; i<rivers.size(); i++){
         for (int j = rivers[i].size()-1; j>=0; j--){ //delete all fragments that can be skipped but were not skipped due to order
             auto start = rivers[i][j].start;
-            Dune::FieldVector<double, 2> rasterStart = convertToRasterCoordinates(start, cellSize, realCellSize); 
+            Dune::FieldVector<double, 2> rasterStart = convertToRasterCoordinates(start, cellSize); 
             rasterStart = rasterStart - Dune::FieldVector<double, 2>{0.5, 0.5};
             if (skip[round(rasterStart[1])*gridSize[0]+round(rasterStart[0])]){ 
                 rivers[i].erase(rivers[i].begin()+j);}
@@ -258,8 +240,6 @@ std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accu
 
     std::vector<std::vector<flowFragment>> rivers(4, std::vector<flowFragment>{});
 
-    const std::array<double, 2> realCellSize = calcRealCellSize(cellSize, gridSize);
-
     std::cout << "Start finding flow fragments" << std::endl;
     for (int i = 0; i < gridSize[0]; i++){ 
         for (int j = 0; j < gridSize[1]; j++){
@@ -310,7 +290,7 @@ std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accu
                 double avgAccumulation = (accStart+accEnd)/2;
                 double depht = calcDepht(avgAccumulation, scaleDephtFactor);
                 
-                std::tuple<double, int, double> widthInfo = calcWidth(avgAccumulation, cellSize, realCellSize, fixedWidth, directionCategory, scaleWidthFactor, minWidth, maxWidth);
+                std::tuple<double, int, double> widthInfo = calcWidth(avgAccumulation, cellSize, fixedWidth, directionCategory, scaleWidthFactor, minWidth, maxWidth);
                 double width =std::get<0>(widthInfo);
                 int maxIterationsFragment = std::get<1>(widthInfo);
                 double minSize = std::get<2>(widthInfo);
@@ -320,10 +300,9 @@ std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accu
                 if(endWorld == Dune::FieldVector<double, 2>{-100, -100}) endWorld = Dune::FieldVector<double, 2>(end)+shift;
                 else endWorld += shift;
             
-                startWorld = convertToGlobalCoordinates(startWorld, cellSize, realCellSize);
-                endWorld = convertToGlobalCoordinates(endWorld, cellSize, realCellSize);
-                //std::cout << width << std::endl;
-                
+                startWorld = convertToGlobalCoordinates(startWorld, cellSize);
+                endWorld = convertToGlobalCoordinates(endWorld, cellSize);
+                        
                 flowFragment f = {startWorld, endWorld, width, width, depht, maxIterationsFragment, directionCategory, minSize}; 
 
                 int boxStart = selectBox({start}, xBisector, yBisector);
@@ -347,7 +326,7 @@ std::vector<std::vector<flowFragment>> detectFragments(RasterDataSet<float> accu
     int count = 0;
 
     std::cout << "Number of fragments before skip: " << rivers[0].size() + rivers[1].size() + rivers[2].size() + rivers[3].size() << std::endl; //TODO delete
-    rivers = deleteSkippableFragments(rivers, skip, cellSize, realCellSize, gridSize);
+    rivers = deleteSkippableFragments(rivers, skip, cellSize, gridSize);
     std::cout << "Number of fragments: " << rivers[0].size() + rivers[1].size() + rivers[2].size() + rivers[3].size() << std::endl; //TODO delete
 
     std::vector<flowFragment> allFragments; //TODO delete
@@ -459,7 +438,7 @@ std::vector<fragmentBoundaries> calcFragmentBoundaries(std::vector<flowFragment>
  * @return double The computed diagonal distance.
  */
 double diagDistance(const Dune::FieldVector<double, 2> start, const Dune::FieldVector<double, 2> vec, const Dune::FieldVector<double, 2> point){
-    if (abs(abs(vec[0]) - abs(vec[1])) > 1e-8) std::cerr << "Not a diagonal vector" << std::endl;
+    if (abs(abs(vec[0]) - abs(vec[1])) > 1e-8) std::cerr << "Not a diagonal vector: "  << vec << std::endl;
     const Dune::FieldVector<double, 2> startToPoint = point - start;
     double d = std::copysign(1, vec[0]) * startToPoint[0]- std::copysign(1, vec[1]) * startToPoint[1];
     double dist = d / sqrt(2);
@@ -502,9 +481,7 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
     using GridView = Grid::LeafGridView;
     const GridView gridView = grid->leafGridView();
 
-    std::array<double, 2> realCellSize = calcRealCellSize(cellSize, gridSize);
-
-    Dune::FieldVector<double, 2> bisectors = convertToGlobalCoordinates({std::floor(gridSize[0]/2), std::floor(gridSize[0]/2)}, cellSize, realCellSize);
+    Dune::FieldVector<double, 2> bisectors = convertToGlobalCoordinates({std::floor(gridSize[0]/2), std::floor(gridSize[0]/2)}, cellSize);
     double xBisector = bisectors[0];
     double yBisector = bisectors[1];
 
@@ -526,15 +503,15 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
             for(int i = 0; i < 3; i++){
                 corners.push_back(element.geometry().corner(i));
             }
-
-            
+   
             int box = selectBox(corners, xBisector, yBisector);
-            
-            bool marked = false;
 
-            for (const auto& fB : fragmentsBoundaries[box]){
-                if(marked) break;
-                if(c>fB.maxIterationsFragment) continue;
+            for (int i = fragmentsBoundaries[box].size()-1; i>=0; i--){
+                auto fB = fragmentsBoundaries[box][i];          
+                if(c>fB.maxIterationsFragment){
+                    fragmentsBoundaries[box].erase(fragmentsBoundaries[box].begin()+i);
+                    continue;
+                }
 
                 bool between = false;
                 bool onSide1 = false;
@@ -547,8 +524,8 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
                 
                 for (int i = 0; i < 3; i++){
                     auto cornerI =corners[i];
-                    if (cornerI[0] < fB.minX-realCellSize[0]-0.1 || cornerI[0] > fB.maxX+realCellSize[0]+0.1 || cornerI[1] < fB.minY-realCellSize[1]-0.1 ||
-                            cornerI[1] > fB.maxY+realCellSize[1]+0.1){  //element too far away
+                    if (cornerI[0] < fB.minX-cellSize[0]-0.1 || cornerI[0] > fB.maxX+cellSize[0]+0.1 || cornerI[1] < fB.minY-cellSize[1]-0.1 ||
+                            cornerI[1] > fB.maxY+cellSize[1]+0.1){  //element too far away
                         continueFragment = true; 
                         break;
                     }
@@ -587,9 +564,8 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
 
                 if(onSide1+onSide2==2) { //whole flow inside triangle
                     grid->mark(1, element); 
-                    marked = true;
                     change=true; 
-                    continue;}
+                    break;}
 
                 double dist01 = squaredDistance(corners[0], corners[1]);
                 double dist02 = squaredDistance(corners[0], corners[2]);
@@ -606,9 +582,8 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
         
                     if (exactCalc && (std::abs(hypo[0]) < 1e-8 || std::abs(hypo[1]) < 1e-8)){ //hypotenuse vertical or horizontal
                         grid->mark(1, element);
-                        marked = true;
                         change = true;
-                        continue;
+                        break;
                     }
                     if(fB.direction == 1 && (std::abs(fB.start1[1] - hypoCenter[1]) < fB.minSize/2 || std::abs(fB.start2[1] - hypoCenter[1]) < fB.minSize/2)){continue;} //horizontal: border close to middle of triangle (in right angle)
                     else if(fB.direction == 2 && (std::abs(fB.start1[0] - hypoCenter[0]) < fB.minSize/2 || std::abs(fB.start2[0] - hypoCenter[0]) < fB.minSize/2)){continue;} //vertical: border close to middle of triangle (in right angle)
@@ -616,9 +591,8 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
                 else if(fB.direction == 3){ //flow diagonal
                     if (exactCalc && (std::abs(hypo[0] + hypo[1]) < 1e-8 || std::abs(hypo[0] - hypo[1]) < 1e-8)){ //hypothenuse diagonal
                         grid->mark(1, element);
-                        marked = true;
                         change = true;
-                        continue;
+                        break;
                     }
                                         
                     if(abs(diagDistance(fB.start1, fB.b1, hypoCenter))<fB.minSize/2 || abs(diagDistance(fB.start2, fB.b1, hypoCenter))<fB.minSize/2){continue;}
@@ -626,8 +600,8 @@ void refineGridwithFragments(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex,
             
                 if(squaredDistance(fB.start1, hypoCenter) < 625 || squaredDistance(fB.start1, hypoCenter) < 625) continue; //start and and don't need to be refined perfectly
                 grid->mark(1,element);
-                marked = true;
                 change = true;
+                break;
             }
         }
         
@@ -744,13 +718,12 @@ bool isPointInFlow(const Dune::FieldVector<double, 2>& point, const fragmentBoun
 std::vector<double> overallHeight(const Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>::LeafGridView& gridView, 
                                 RasterDataSet<float> elevation_raster, std::array<double, 2> cellSize, std::array<int, 2> gridSize){
 
-    std::array<double, 2> realCellSize = calcRealCellSize(cellSize, gridSize);
 
     std::vector<double> height(gridView.indexSet().size(2), 0);
 
     for(auto& v : vertices(gridView)){
         auto corner = v.geometry().corner(0);
-        Dune::FieldVector<double, 2> rasterCorner = convertToRasterCoordinates(corner, cellSize, realCellSize);
+        Dune::FieldVector<double, 2> rasterCorner = convertToRasterCoordinates(corner, cellSize);
         
         double elevation_val = interpolateElevation(rasterCorner, gridSize, elevation_raster);
 
@@ -773,17 +746,16 @@ std::vector<double> overallHeight(const Dune::ALUGrid< 2, 2, Dune::simplex, Dune
  * 
  * @param corner The vertex to calculate the height for.
  * @param cellSize The size of the grid cells.
- * @param realCellSize The actual size of the grid cells.
  * @param gridSize The dimensions of the grid.
  * @param elevation_raster The raster dataset containing elevation values.
  * @param fB The boundaries of the flow fragment.
  * @param originalHeightVertex The original height of the vertex.
  * @return std::pair<bool, double> Returns if height value is calculated and the new height value.
  */
-std::pair<bool, double>  diagSpecialCase(Dune::FieldVector<double, 2> corner, const std::array<double, 2>& cellSize, const std::array<double, 2>& realCellSize, 
+std::pair<bool, double>  diagSpecialCase(Dune::FieldVector<double, 2> corner, const std::array<double, 2>& cellSize, 
                                         std::array<int, 2> gridSize, const RasterDataSet<float>& elevation_raster, 
                                         fragmentBoundaries fB, double originalHeightVertex){
-    Dune::FieldVector<double, 2> rasterCorner = convertToRasterCoordinates(corner, cellSize, realCellSize);
+    Dune::FieldVector<double, 2> rasterCorner = convertToRasterCoordinates(corner, cellSize);
 
     std::vector<int> neighbors= calcNeighbors(rasterCorner, gridSize);
     int neighborX1 = neighbors[0];
@@ -795,7 +767,7 @@ std::pair<bool, double>  diagSpecialCase(Dune::FieldVector<double, 2> corner, co
     if(neighborX2==-2 && neighborY2 == -2){ // vertex in cell (of raster data)
         
         if(std::abs(fB.b1[0]-fB.b1[1])<1e-8){ //flow from bottom left to top right or vice versa
-            Dune::FieldVector<double, 2> bottomLeftCellCorner = convertToGlobalCoordinates({neighborX1, neighborY1}, cellSize, realCellSize);
+            Dune::FieldVector<double, 2> bottomLeftCellCorner = convertToGlobalCoordinates({neighborX1, neighborY1}, cellSize);
             
             if(!isPointInFlow(bottomLeftCellCorner, fB)){ //flow through corner of cell (bottom left corner not in flow)
                 double x_inCell = rasterCorner[0] - neighborX1;
@@ -818,7 +790,7 @@ std::pair<bool, double>  diagSpecialCase(Dune::FieldVector<double, 2> corner, co
             }
         }
         else{//flow from bottom right to top left or vice versa
-            Dune::FieldVector<double, 2> bottomRightCellCorner = convertToGlobalCoordinates({neighborX1+1, neighborY1}, cellSize, realCellSize);
+            Dune::FieldVector<double, 2> bottomRightCellCorner = convertToGlobalCoordinates({neighborX1+1, neighborY1}, cellSize);
 
             if(!isPointInFlow(bottomRightCellCorner, fB)){ //flow through corner of cell (bottom right corner not in flow)
                 double x_inCell = rasterCorner[0]- neighborX1;
@@ -858,9 +830,7 @@ std::vector<double> applyFlowHeightFragments(const Dune::ALUGrid< 2, 2, Dune::si
 
     std::vector<double> originalHeight = height;
 
-    std::array<double, 2> realCellSize = calcRealCellSize(cellSize, gridSize);
-
-    Dune::FieldVector<double, 2> bisectors = convertToGlobalCoordinates({std::floor(gridSize[0]/2), std::floor(gridSize[0]/2)}, cellSize, realCellSize);
+    Dune::FieldVector<double, 2> bisectors = convertToGlobalCoordinates({std::floor(gridSize[0]/2), std::floor(gridSize[0]/2)}, cellSize);
     double xBisector = bisectors[0];
     double yBisector = bisectors[1];
 
@@ -879,7 +849,7 @@ std::vector<double> applyFlowHeightFragments(const Dune::ALUGrid< 2, 2, Dune::si
             if (!isPointInFlow(corner, fB)) continue;
             int vertexIndex = gridView.indexSet().index(v);
             if(fB.direction == 3){ //diagonal special case
-                std::pair<bool, double> dsc = diagSpecialCase(corner, cellSize, realCellSize, gridSize, elevation_raster, fB, originalHeight[vertexIndex]);
+                std::pair<bool, double> dsc = diagSpecialCase(corner, cellSize, gridSize, elevation_raster, fB, originalHeight[vertexIndex]);
                 if(dsc.first){
                     height[vertexIndex] = dsc.second;
                     continue;

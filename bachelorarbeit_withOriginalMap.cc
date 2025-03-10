@@ -3,89 +3,35 @@
 #include "config.h"
 #endif
 #include <iostream>
-#include <cmath>
-#include <string>
-#include <iostream>
-#include <sstream>
-#include <queue>
-#include <algorithm>
-// C++ includes
-#include <math.h>
-#include <iostream>
+
 // dune-common includes
 #include <dune/common/parallel/mpihelper.hh> // An initializer of MPI
 #include <dune/common/exceptions.hh>         // We use exceptions
 #include <dune/common/parallel/mpihelper.hh>
 #include <dune/common/parametertreeparser.hh>
-#include <dune/common/timer.hh>
-// dune-geometry includes
-#include <dune/geometry/referenceelements.hh>
-#include <dune/geometry/quadraturerules.hh>
 // dune-grid includes
 #include <dune/grid/yaspgrid.hh>
 #include <dune/grid/utility/structuredgridfactory.hh>
 #include <dune/grid/io/file/vtk.hh>
 #include <dune/grid/io/file/vtk/vtkwriter.hh>
 #include <dune/grid/io/file/gmshreader.hh>
-#if HAVE_UG
-#include <dune/grid/uggrid.hh>
-#endif
-#if HAVE_DUNE_ALUGRID
-#include<dune/alugrid/grid.hh>
-#include<dune/alugrid/dgf.hh>
-#include<dune/grid/io/file/dgfparser/dgfparser.hh>
-#endif
+
 // dune-pdelab includes
-#include <dune/pdelab/common/function.hh>
-#include <dune/pdelab/common/vtkexport.hh>
-#include <dune/pdelab/finiteelementmap/pkfem.hh>
-#include <dune/pdelab/finiteelementmap/qkfem.hh>
 #include <dune/pdelab/finiteelementmap/p0fem.hh>
 #include <dune/pdelab/constraints/p0.hh>
-#include <dune/pdelab/constraints/common/constraints.hh>
-#include <dune/pdelab/constraints/common/constraintsparameters.hh>
-#include <dune/pdelab/constraints/conforming.hh>
 #include <dune/pdelab/function/callableadapter.hh>
-#include <dune/pdelab/gridfunctionspace/gridfunctionspace.hh>
-#include <dune/pdelab/gridfunctionspace/gridfunctionspaceutilities.hh>
-#include <dune/pdelab/gridfunctionspace/interpolate.hh>
-#include <dune/pdelab/gridfunctionspace/vtk.hh>
-#include <dune/pdelab/gridoperator/gridoperator.hh>
-#include <dune/pdelab/gridoperator/onestep.hh>
-#include <dune/pdelab/localoperator/defaultimp.hh>
-#include <dune/pdelab/localoperator/pattern.hh>
-#include <dune/pdelab/localoperator/flags.hh>
-#include <dune/pdelab/localoperator/variablefactories.hh>
-#include <dune/pdelab/localoperator/l2.hh>
 #include <dune/pdelab/backend/istl.hh>
-#include <dune/pdelab/stationary/linearproblem.hh>
-#include <dune/pdelab/instationary/onestep.hh>
-#include <dune/pdelab/newton/newton.hh>
-#include <dune/pdelab/solver/newton.hh>
 
 // dune-vtk includes
 #include <dune/vtk/writers/vtkimagedatawriter.hh>
-#include <dune/vtk/writers/vtkrectilineargridwriter.hh>
-#include <dune/vtk/writers/vtkstructuredgridwriter.hh>
-#include <dune/vtk/writers/vtkunstructuredgridwriter.hh>
 #include <dune/vtk/datacollectors/yaspdatacollector.hh>
-#include <dune/vtk/datacollectors/spdatacollector.hh>
-#include <dune/grid/io/file/vtk/subsamplingvtkwriter.hh>
 
 
 // include stuff from dune-hydro
-#include <dune/hydro/nonlineardiffusionfv.hh>
-#include <dune/hydro/nonlineardiffusionfv_velocity.hh>
 #include <dune/hydro/geotiffreader.hh>
-#include <dune/hydro/netcdfreader.hh>
-#include <dune/hydro/rasterdataset.hh>
 #include <dune/vtk/pvdwriter.hh>
 
 #include "flowFunctions.hh"
-#include <dune/common/timer.hh>
-
-
-
 
 
 
@@ -127,8 +73,8 @@ int main(int argc, char **argv)
       double ox = image.originLong();
       double oy = image.originLat();
       std::array<int, 2> N;
-      N[0] = 80; //1800
-      N[1] = 100; //1200
+      N[0] = 80;
+      N[1] = 100;
       std::array<double, 2> H;
       H[0] = 90; 
       H[1] = 90; 
@@ -142,20 +88,15 @@ int main(int argc, char **argv)
       auto gridp = std::make_shared<Grid>(L, N, std::bitset<2>(0ULL), 1);
 
       // now make raster canvas in cell-centered mode 
-      //auto elevation_raster    = RasterDataSet<float>           (99.4 + 0.5 * dx, 8.1 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
-      //auto accumulation_raster = RasterDataSet<float>           (99.4 + 0.5 * dx, 8.1 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
-      //auto direction_raster    = RasterDataSet<unsigned char>   (99.4 + 0.5 * dx, 8.1 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
-      auto elevation_raster    = RasterDataSet<float>         (99.4 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
+      auto elevation_raster    = RasterDataSet<float>         (99.4 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); 
       auto accumulation_raster = RasterDataSet<float>         (99.4 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
       auto direction_raster    = RasterDataSet<unsigned char> (99.4 + 0.5 * dx, 8.0 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
-      //auto elevation_raster    = RasterDataSet<float>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1); //original: 99.0, 8.0 (99 breite, 8 höhe)
-      //auto accumulation_raster = RasterDataSet<float>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
-      //auto direction_raster    = RasterDataSet<unsigned char>(99.2 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
+      
       elevation_raster.paste(image);
       accumulation_raster.paste(aimage);
       direction_raster.paste(dimage); 
 
-      // write a grid file    
+      // create grid with original map  
       typedef Grid::LeafGridView GV;
       GV gv = gridp->leafGridView();
 
@@ -216,60 +157,37 @@ int main(int argc, char **argv)
       std::string fullfilename = "rivers.vti";
       pvdWriter.writeTimestep(0.0, fullfilename);
 
+   
+      
+      // create grid for refinement
+      typedef Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming > Grid_;
+      using GridView = Grid_::LeafGridView;
+
+      const std::array<unsigned, 2> n = {N[0], N[1]};
+      const Dune::FieldVector<double, 2> lower = {0, 0};
+      const Dune::FieldVector<double, 2> upper = {L[0], L[1]};
 
 
-  
-        
-    typedef Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming > Grid_;
-    using GridView = Grid_::LeafGridView;
+      std::shared_ptr<Grid_> grid = Dune::StructuredGridFactory<Grid_>::createSimplexGrid(lower, upper, n);
+      const GridView gridView = grid->leafGridView();
 
+      std::vector<std::vector<flowFragment>> fragments = detectFragments(accumulation_raster, direction_raster, H, N, 50, 200);
 
-    // create grid
-    const std::array<unsigned, 2> n_ = {N[0], N[1]};
-    const Dune::FieldVector<double, 2> lower = {0, 0};
-    const Dune::FieldVector<double, 2> upper = {L[0] , L[1] };
-    //const Dune::FieldVector<double, 2> lower = {0.5 * H[0], 0.5 * H[1]};
-    //const Dune::FieldVector<double, 2> upper = {L[0] - 0.5 * H[0], L[1] - 0.5 * H[1]};
+      std::cout << "Start refining (might take a while)" << std::endl;
+      refineGridwithFragments(grid, fragments, N, H,50,  0.5, false  );
 
+      std::vector<double> height = overallHeight(gridView, elevation_raster, H, N);
+      height= applyFlowHeightFragments(gridView, fragments, height, elevation_raster, H, N);
 
-    std::shared_ptr<Grid_> grid = Dune::StructuredGridFactory<Grid_>::createSimplexGrid(lower, upper, n_);
-    const GridView gridView = grid->leafGridView();
-
-    int elem_counter = 0;
-    for (const auto &element : elements(gridView))
-    {
-      elem_counter++;
+      Dune::VTKWriter<GridView> vtkWriter(gridView);
+      vtkWriter.addVertexData(height, "height");
+      
+      vtkWriter.write("mapWithRefinedRivers02");
     }
 
-    //elevation_raster = removeUpwardsRivers(accumulation_raster, direction_raster, elevation_raster, N);
-    //std::vector<flowFragment> rivers = detectFragments(accumulation_raster, direction_raster, H, N);
-    //refineGridwithFragments(grid, rivers, 0.4, H, 50); 
-    std::vector<std::vector<flowFragment>> fragments = detectFragments(accumulation_raster, direction_raster, H, N, 50, 200);
-    std::cout << "Start refining (might take a while)" << std::endl;
-
-    Dune::Timer timerRefine;  // Timer starten       
-    refineGridwithFragments(grid, fragments, N, H,50,  0.5, false  );
-    std::cout << timerRefine.stop() << std::endl;  // Stoppe den Timer und bekomme die Zeit in Sekunden
-
-    std::vector<double> height = overallHeight(gridView, elevation_raster, H, N);
-    height= applyFlowHeightFragments(gridView, fragments, height, elevation_raster, H, N);
-
-    Dune::VTKWriter<GridView> vtkWriter(gridView);
-    vtkWriter.addVertexData(height, "height");
-    
-    vtkWriter.write("nakhon_refined09");
-
-   //int elem_counter_refined = 0;
-   // for (const auto &element : elements(gridView))
-   // {
-   //   elem_counter_refined++;
-   // }
-   // std::cout << "\nNumber of elements before refinement: " << elem_counter << std::endl;
-   // std::cout << "Number of elements after refinement: " << elem_counter_refined << std::endl;
-  }
     // close GDAL
-  GDALDestroyDriverManager();
-  return 0;
+    GDALDestroyDriverManager();
+    return 0;
   }
   catch (Dune::Exception &e)
   {

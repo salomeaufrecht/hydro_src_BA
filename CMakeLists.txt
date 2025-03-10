@@ -125,6 +125,16 @@
 #target_link_libraries(detectRivers_example_ausarbeitung PUBLIC GDAL::GDAL)
 #target_link_libraries(detectRivers_example_ausarbeitung PUBLIC NetCDF::NetCDF)
 
+add_executable("bachelorarbeit_withOriginalMap" bachelorarbeit_withOriginalMap.cc flowFunctions.cc flowFunctions.hh)
+target_link_dune_default_libraries(bachelorarbeit_withOriginalMap)
+target_link_libraries(bachelorarbeit_withOriginalMap PUBLIC GDAL::GDAL)
+target_link_libraries(bachelorarbeit_withOriginalMap PUBLIC NetCDF::NetCDF)
+
+#add_executable("bachelorarbeit_beispiel" bachelorarbeit_beispiel.cc flowFunctions.cc flowFunctions.hh)
+#target_link_dune_default_libraries(bachelorarbeit_beispiel)
+#target_link_libraries(bachelorarbeit_beispiel PUBLIC GDAL::GDAL)
+#target_link_libraries(bachelorarbeit_beispiel PUBLIC NetCDF::NetCDF)
+
 #add_executable("explain_refinement" explain_refinement.cc flowFunctions.cc flowFunctions.hh)
 #target_link_dune_default_libraries(explain_refinement)
 #target_link_libraries(explain_refinement PUBLIC GDAL::GDAL)
@@ -160,10 +170,10 @@
 #target_link_libraries(runtime_detectFragments PUBLIC GDAL::GDAL)
 #target_link_libraries(runtime_detectFragments PUBLIC NetCDF::NetCDF)
 
-add_executable("runtime_all" runtime_all.cc flowFunctions.cc flowFunctions.hh)
-target_link_dune_default_libraries(runtime_all)
-target_link_libraries(runtime_all PUBLIC GDAL::GDAL)
-target_link_libraries(runtime_all PUBLIC NetCDF::NetCDF)
+#add_executable("runtime_all" runtime_all.cc flowFunctions.cc flowFunctions.hh)
+#target_link_dune_default_libraries(runtime_all)
+#target_link_libraries(runtime_all PUBLIC GDAL::GDAL)
+#target_link_libraries(runtime_all PUBLIC NetCDF::NetCDF)
 
 #add_executable("sphere" sphere.cc)
 #target_link_dune_default_libraries(sphere)

@@ -48,6 +48,7 @@ int main(int argc, char **argv)
         double dx = std::abs(image.dLong());
         double dy = std::abs(image.dLat());
 
+        //size of the map
         std::array<int, 2> N;
         N[0] = 30;
         N[1] = 30;
@@ -58,7 +59,7 @@ int main(int argc, char **argv)
         L[0] = N[0] * H[0];
         L[1] = N[1] * H[1];
 
-
+        //paste data into raster
         auto elevation_raster    = RasterDataSet<float>(99.21 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
         auto accumulation_raster = RasterDataSet<float>(99.21 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
         auto direction_raster    = RasterDataSet<unsigned char>(99.21 + 0.5 * dx, 8.4 + 0.5 * dy, dx, dy, N[0], N[1], 0, 1);
@@ -90,7 +91,7 @@ int main(int argc, char **argv)
         // write result to file
         Dune::VTKWriter<GridView> vtkWriter(gridView);
         vtkWriter.addVertexData(height, "height");
-        vtkWriter.write("mapWithRefinedRivers_ex");
+        vtkWriter.write("mapWithRefinedRivers01");
 
     
       return 0;

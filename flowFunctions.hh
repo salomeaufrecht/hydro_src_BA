@@ -4,16 +4,8 @@
 
 #include "config.h"
 #include <iostream>
-#include <dune/grid/io/file/vtk/vtkwriter.hh>
-#include <dune/grid/uggrid.hh>
-#include <dune/grid/utility/structuredgridfactory.hh>
-#include <dune/common/parallel/mpihelper.hh>
-#include <dune/common/exceptions.hh>
 #include <dune/alugrid/grid.hh>
-#include <dune/alugrid/dgf.hh>
-#include <iostream>
 #include <dune/hydro/rasterdataset.hh>
-#include <tuple>
 
 #include <array>
 
@@ -167,8 +159,8 @@ std::vector<double> applyFlowHeightFragments(const Dune::ALUGrid< 2, 2, Dune::si
 std::vector<double> addRiversToMap(std::shared_ptr<Dune::ALUGrid< 2, 2, Dune::simplex, Dune::conforming>> grid,
                                     std::array<double, 2> cellSize, std::array<int, 2> gridSize,
                                     RasterDataSet<float> accumulation_raster, RasterDataSet<unsigned char> direction_raster, RasterDataSet<float> elevation_raster,
-                                    double minAcc = 50, double maxAccDiff = 200, bool fixedWidth = true, double scaleDephtFactor = 600, 
-                                    double scaleWidthFactor = 90, double minSizeFactor = 0.4, int maxIterations = 50, double minWidth = 1.0, double maxWidth = -1,
+                                    double minAcc = 50, double maxAccDiff = 200, bool fixedWidth = true, double minSizeFactor = 0.4, int maxIterations = 50,
+                                    double scaleDephtFactor = 600, double scaleWidthFactor = 90, double minWidth = 1.0, double maxWidth = -1,
                                     bool exactCalc = false);
 
 #endif // FLOWFUNCTIONS_HH
